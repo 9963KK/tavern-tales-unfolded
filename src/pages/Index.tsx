@@ -13,12 +13,14 @@ const Index = () => {
   const [aiCharacters] = useState<AICharacter[]>(initialAICharacters);
   const [activeSpeakerId, setActiveSpeakerId] = useState<string | null>(null);
   const [thinkingCharacterId, setThinkingCharacterId] = useState<string | null>(null);
-  const [currentTurnAIIndex, setCurrentTurnAIIndex] = useState(0);
+  // currentTurnAIIndex: Index of the AI character that last took a turn (spoke or was involved in player interaction)
+  const [currentTurnAIIndex, setCurrentTurnAIIndex] = useState<number>(0); 
   const [autoConversationTimer, setAutoConversationTimer] = useState<NodeJS.Timeout | null>(null);
   const [isAutoConversationActive, setIsAutoConversationActive] = useState<boolean>(true);
+  // speakerHistory: Stores IDs of AI characters who have spoken in the current "round" or cycle.
   const [speakerHistory, setSpeakerHistory] = useState<string[]>([]);
 
-  const sceneDescription = "你发现自己身处于光线昏暗的"游荡翼龙"酒馆。空气中弥漫着陈年麦酒和木柴烟熏的气味。低语交谈声和酒杯碰撞声充满了整个房间。";
+  const sceneDescription = "你发现自己身处于光线昏暗的“游荡翼龙”酒馆。空气中弥漫着陈年麦酒和木柴烟熏的气味。低语交谈声和酒杯碰撞声充满了整个房间。";
 
   const addMessage = useCallback((text: string, sender: string, isPlayer: boolean, avatarColor?: string) => {
     const newMessage: Message = {
@@ -32,72 +34,73 @@ const Index = () => {
     setMessages((prevMessages) => [...prevMessages, newMessage]);
   }, []);
 
-  // Helper function to select next speaker to ensure variety
-  const selectNextSpeaker = useCallback((currentIndex: number) => {
-    // If we've gone through all characters once, reset the history
-    if (speakerHistory.length >= aiCharacters.length - 1) {
-      setSpeakerHistory([]);
-      return currentIndex % aiCharacters.length;
-    }
-    
-    // Try to find a character that hasn't spoken recently
+  // Selects the index of the next AI character to speak.
+  const selectNextSpeakerIndex = useCallback(() => {
+    if (aiCharacters.length === 0) return 0;
+    if (aiCharacters.length === 1) return 0;
+
+    // Determine the starting point for searching for the next speaker.
+    // This should be the AI after the one who last spoke.
+    const searchStartIndex = (currentTurnAIIndex + 1) % aiCharacters.length;
+
+    // If speakerHistory includes everyone, this means we are starting a new round.
+    // The history used for selection logic will be empty in this case.
+    const historyForSelection = speakerHistory.length >= aiCharacters.length ? [] : speakerHistory;
+
     for (let i = 0; i < aiCharacters.length; i++) {
-      const nextIndex = (currentIndex + i) % aiCharacters.length;
-      if (!speakerHistory.includes(aiCharacters[nextIndex].id)) {
-        return nextIndex;
+      const potentialIndex = (searchStartIndex + i) % aiCharacters.length;
+      if (!historyForSelection.includes(aiCharacters[potentialIndex].id)) {
+        return potentialIndex;
       }
     }
-    
-    // Fallback to simple increment if all have spoken
-    return (currentIndex + 1) % aiCharacters.length;
-  }, [aiCharacters, speakerHistory]);
+    // Fallback: Should ideally not be reached if history logic is correct.
+    // If all are in historyForSelection (e.g. single character), or some other edge case.
+    return searchStartIndex;
+  }, [aiCharacters, currentTurnAIIndex, speakerHistory]);
 
   const startAutoConversation = useCallback(() => {
-    if (!isAutoConversationActive || thinkingCharacterId) return; // Do not start if not active or someone is thinking
-    
-    const timer = setTimeout(() => {
-      // Double check thinkingCharacterId again inside timeout, in case player spoke.
-      if (!isAutoConversationActive || thinkingCharacterId) return; 
+    if (!isAutoConversationActive || thinkingCharacterId || aiCharacters.length === 0) return;
 
-      // Select next speaker to ensure variety
-      const nextAIIndex = selectNextSpeaker(currentTurnAIIndex);
+    const timer = setTimeout(() => {
+      if (!isAutoConversationActive || thinkingCharacterId) return;
+
+      const nextAIIndex = selectNextSpeakerIndex();
       const nextAI = aiCharacters[nextAIIndex];
-      setThinkingCharacterId(nextAI.id);
       
+      if (!nextAI) return; // Should not happen if aiCharacters is not empty
+
+      setThinkingCharacterId(nextAI.id);
+
       setTimeout(() => {
-        // Check again before sending message
         if (!isAutoConversationActive) {
-          setThinkingCharacterId(null); // Clear thinking if auto conversation was stopped
+          setThinkingCharacterId(null);
           return;
         }
         const aiResponseText = nextAI.responses[Math.floor(Math.random() * nextAI.responses.length)];
         addMessage(aiResponseText, nextAI.name, false, nextAI.avatarColor);
         setActiveSpeakerId(nextAI.id);
         setThinkingCharacterId(null);
-        
-        // Update speaker history
-        setSpeakerHistory(prev => [...prev, nextAI.id]);
-        
-        // Update to next speaker
-        setCurrentTurnAIIndex(nextAIIndex);
-        
-        // Schedule next autonomous message
-        startAutoConversation();
+
+        setSpeakerHistory(prev => {
+          const isNewCycle = prev.length >= aiCharacters.length;
+          return isNewCycle ? [nextAI.id] : [...new Set([...prev, nextAI.id])];
+        });
+        setCurrentTurnAIIndex(nextAIIndex); // This AI just spoke
+
+        startAutoConversation(); // Schedule next
       }, 1500 + Math.random() * 1000); // Thinking time
-    }, 4000 + Math.random() * 6000); // Random delay between 4 and 10 seconds
-    
+    }, 4000 + Math.random() * 6000); // Delay
+
     setAutoConversationTimer(timer);
   }, [
-    aiCharacters, 
-    currentTurnAIIndex, 
-    thinkingCharacterId, 
-    isAutoConversationActive, 
-    addMessage, 
-    selectNextSpeaker,
+    aiCharacters,
+    isAutoConversationActive,
+    thinkingCharacterId,
+    addMessage,
+    selectNextSpeakerIndex, // Changed from direct currentTurnAIIndex/speakerHistory
   ]);
 
-
-  // Initial greeting from the first AI character
+  // Initial greeting
   useEffect(() => {
     if (aiCharacters.length > 0 && messages.length === 0) {
       const firstAI = aiCharacters[0];
@@ -106,16 +109,16 @@ const Index = () => {
         addMessage(firstAI.greeting, firstAI.name, false, firstAI.avatarColor);
         setActiveSpeakerId(firstAI.id);
         setThinkingCharacterId(null);
-        setSpeakerHistory([firstAI.id]); // Initialize speaker history
-        setCurrentTurnAIIndex(1 % aiCharacters.length); // Next AI for autonomous conversation
-        if (isAutoConversationActive) { // Check before starting
+        setSpeakerHistory([firstAI.id]); // First AI spoke
+        setCurrentTurnAIIndex(0);         // Index of the AI that just spoke
+        if (isAutoConversationActive) {
           startAutoConversation();
         }
       }, 1500);
     }
   }, [aiCharacters, messages.length, addMessage, startAutoConversation, isAutoConversationActive]);
 
-  // Cleanup timer on component unmount
+
   useEffect(() => {
     return () => {
       if (autoConversationTimer) {
@@ -123,24 +126,29 @@ const Index = () => {
       }
     };
   }, [autoConversationTimer]);
-  
+
   const handlePlayerMessage = useCallback((text: string) => {
     if (autoConversationTimer) {
       clearTimeout(autoConversationTimer);
       setAutoConversationTimer(null);
     }
-    setIsAutoConversationActive(false); // Pause auto conversation
-    // If an AI was thinking, interrupt it
+    setIsAutoConversationActive(false);
     if (thinkingCharacterId) {
-        setThinkingCharacterId(null);
+      setThinkingCharacterId(null);
     }
-    
-    addMessage(text, '玩家', true);
-    setActiveSpeakerId(null); 
 
-    // For player responses, always select the next character in sequence
-    const respondingAIIndex = currentTurnAIIndex % aiCharacters.length;
+    addMessage(text, '玩家', true);
+    setActiveSpeakerId(null);
+
+    // AI responds. The AI to respond can be the one "next in line" based on currentTurnAIIndex.
+    // Or, a more sophisticated logic could be used here.
+    // For now, let's use a similar logic to auto-conversation for who responds,
+    // effectively the next character in the sequence considering the last speaker.
+    const respondingAIIndex = selectNextSpeakerIndex(); // This will use currentTurnAIIndex and speakerHistory
     const respondingAI = aiCharacters[respondingAIIndex];
+
+    if (!respondingAI) return;
+
     setThinkingCharacterId(respondingAI.id);
 
     setTimeout(() => {
@@ -148,26 +156,25 @@ const Index = () => {
       addMessage(aiResponseText, respondingAI.name, false, respondingAI.avatarColor);
       setActiveSpeakerId(respondingAI.id);
       setThinkingCharacterId(null);
-      
-      // Update speaker history
-      setSpeakerHistory(prev => [...prev, respondingAI.id]);
-      
-      // Next AI in sequence will speak either in response or autonomously next.
-      setCurrentTurnAIIndex((respondingAIIndex + 1) % aiCharacters.length); 
-      
-      // Resume auto conversation after AI responds to player
+
+      setSpeakerHistory(prev => {
+        const isNewCycle = prev.length >= aiCharacters.length;
+        return isNewCycle ? [respondingAI.id] : [...new Set([...prev, respondingAI.id])];
+      });
+      setCurrentTurnAIIndex(respondingAIIndex); // This AI just spoke
+
       setTimeout(() => {
         setIsAutoConversationActive(true);
         startAutoConversation();
-      }, 3000 + Math.random() * 2000); // Delay before resuming auto-chat
+      }, 3000 + Math.random() * 2000);
     }, 1500 + Math.random() * 1000);
   }, [
-    autoConversationTimer, 
-    addMessage, 
-    aiCharacters, 
-    currentTurnAIIndex, 
+    autoConversationTimer,
+    addMessage,
+    aiCharacters,
     startAutoConversation,
     thinkingCharacterId,
+    selectNextSpeakerIndex, // Added
   ]);
 
   return (
@@ -175,14 +182,14 @@ const Index = () => {
       <div className="w-full max-w-2xl lg:max-w-3xl bg-tavern-panel-bg rounded-lg shadow-xl flex flex-col h-[90vh]">
         <SceneHeader description={sceneDescription} />
         <ChatWindow messages={messages} />
-        <AvatarBar 
-          characters={aiCharacters} 
+        <AvatarBar
+          characters={aiCharacters}
           activeSpeakerId={activeSpeakerId}
           thinkingCharacterId={thinkingCharacterId}
         />
-        <InputArea 
-          onSendMessage={handlePlayerMessage} 
-          isAIThinking={!!thinkingCharacterId && !messages.some(m => m.isPlayer && m.id === thinkingCharacterId)}
+        <InputArea
+          onSendMessage={handlePlayerMessage}
+          isAIThinking={!!thinkingCharacterId}
         />
       </div>
     </div>
