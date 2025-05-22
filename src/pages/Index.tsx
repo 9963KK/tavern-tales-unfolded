@@ -182,7 +182,7 @@ const Index = () => {
         />
         <InputArea 
           onSendMessage={handlePlayerMessage} 
-          isAIThinking={!!thinkingCharacterId && !messages.some(m => m.isPlayer && m.id === thinkingCharacterId)} // AI is thinking if thinkingCharacterId is set (unless it's a player message ID, which is not the case here)
+          isAIThinking={!!thinkingCharacterId && !messages.some(m => m.isPlayer && m.id === thinkingCharacterId)}
         />
       </div>
     </div>
