@@ -26,7 +26,7 @@ const InputArea: React.FC<InputAreaProps> = ({ onSendMessage, isAIThinking }) =>
         type="text"
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
-        placeholder="Say something..."
+        placeholder="说点什么..."
         className="flex-grow bg-tavern-bg text-tavern-text border-tavern-accent focus:ring-tavern-accent placeholder-gray-500"
         disabled={isAIThinking}
       />
@@ -35,10 +35,11 @@ const InputArea: React.FC<InputAreaProps> = ({ onSendMessage, isAIThinking }) =>
         className="bg-tavern-accent hover:bg-yellow-600 text-tavern-bg font-semibold"
         disabled={isAIThinking || !inputValue.trim()}
       >
-        <Send size={18} className="mr-2" /> Send
+        <Send size={18} className="mr-2" /> 发送
       </Button>
     </form>
   );
 };
 
 export default InputArea;
+

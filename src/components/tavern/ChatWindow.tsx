@@ -17,7 +17,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages }) => {
   return (
     <div className="flex-grow bg-tavern-bg p-4 overflow-y-auto h-96 border border-tavern-panel-bg rounded-md shadow-inner">
       {messages.length === 0 && (
-        <p className="text-center text-tavern-text opacity-70">The tavern is quiet... for now.</p>
+        <p className="text-center text-tavern-text opacity-70">酒馆里很安静……暂时是这样。</p>
       )}
       {messages.map((msg) => (
         <MessageBubble key={msg.id} message={msg} />
@@ -28,3 +28,4 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages }) => {
 };
 
 export default ChatWindow;
+

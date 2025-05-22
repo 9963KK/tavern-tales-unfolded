@@ -15,7 +15,7 @@ const Index = () => {
   const [thinkingCharacterId, setThinkingCharacterId] = useState<string | null>(null);
   const [currentTurnAIIndex, setCurrentTurnAIIndex] = useState(0);
 
-  const sceneDescription = "You find yourself in the dimly lit 'Wandering Wyvern' tavern. The air is thick with the smell of stale ale and woodsmoke. Murmurs of conversation and the clinking of tankards fill the room.";
+  const sceneDescription = "你发现自己身处于光线昏暗的“游荡翼龙”酒馆。空气中弥漫着陈年麦酒和木柴烟熏的气味。低语交谈声和酒杯碰撞声充满了整个房间。";
 
   // Initial greeting from the first AI character
   useEffect(() => {
@@ -51,7 +51,7 @@ const Index = () => {
   };
 
   const handlePlayerMessage = (text: string) => {
-    addMessage(text, 'Player', true);
+    addMessage(text, '玩家', true);
     setActiveSpeakerId(null); // Player speaks, no AI is "active speaker" for this message
 
     // Simulate AI response
@@ -87,3 +87,4 @@ const Index = () => {
 };
 
 export default Index;
+

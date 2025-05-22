@@ -1,45 +1,46 @@
 
 import { AICharacter } from '@/types/tavern';
-import { User } from 'lucide-react'; // Using a generic user icon
+// import { User } from 'lucide-react'; // Using a generic user icon, not directly used for text
 
 export const initialAICharacters: AICharacter[] = [
   {
     id: 'thorgar',
-    name: 'Barkeep Thorgar',
+    name: '酒保索尔加',
     avatarColor: 'bg-red-700', // Earthy red
-    greeting: "Welcome, traveler. What can I get for ye?",
+    greeting: "欢迎，旅行者。想喝点什么？",
     responses: [
-      "Aye, that's an interesting tale.",
-      "The usual, then?",
-      "Heard any news from the road?",
-      "Another round? Or perhaps something stronger?",
-      "Careful now, don't want no trouble in my establishment."
+      "嗯，这倒是个有趣的故事。",
+      "还是老样子吗？",
+      "路上有什么新鲜事吗？",
+      "再来一轮？或者来点更带劲的？",
+      "小心点，别在我的店里惹麻烦。"
     ],
   },
   {
     id: 'elara',
-    name: 'Elara the Bard',
+    name: '吟游诗人艾拉',
     avatarColor: 'bg-yellow-500', // Bright yellow for a bard
-    greeting: "Greetings! Care for a song, or perhaps a story?",
+    greeting: "你好！想听首歌，还是一个故事？",
     responses: [
-      "Ah, a classic choice!",
-      "That reminds me of a lay about a dragon...",
-      "Music soothes the soul, wouldn't you agree?",
-      "I've traveled far and wide, seen many things.",
-      "Perhaps your adventures would make a fine ballad!"
+      "啊，经典之选！",
+      "这让我想起了一首关于龙的歌谣...",
+      "音乐能抚慰灵魂，你同意吗？",
+      "我游历四方，见闻广博。",
+      "也许你的冒险经历能谱写成一首好民谣！"
     ],
   },
   {
     id: 'mysteriousStranger',
-    name: 'Mysterious Stranger',
+    name: '神秘的陌生人',
     avatarColor: 'bg-indigo-700', // Deep, mysterious color
     greeting: "...",
     responses: [
-      "Hmph.",
-      "Some secrets are best left buried.",
-      "The shadows hold many truths.",
-      "I'm listening.",
-      "We all have our reasons for being here."
+      "哼。",
+      "有些秘密最好还是深埋起来。",
+      "阴影中隐藏着许多真相。",
+      "我在听。",
+      "我们来到这里，都有各自的理由。"
     ],
   },
 ];
+

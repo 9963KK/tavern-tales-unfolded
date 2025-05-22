@@ -26,11 +26,12 @@ const CharacterAvatar: React.FC<CharacterAvatarProps> = ({ character, isActive, 
         )}
       </div>
       <p className={`text-xs ${isActive || isThinking ? 'text-tavern-accent font-semibold' : 'text-tavern-text'}`}>
-        {character.name.split(' ')[0]} {/* Show first name */}
+        {character.name.split(' ')[0]} {/* Show first part of name, for Chinese names this might just be the full name if no space */}
       </p>
-      {isThinking && <p className="text-xs text-blue-400 italic">Thinking...</p>}
+      {isThinking && <p className="text-xs text-blue-400 italic">思考中...</p>}
     </div>
   );
 };
 
 export default CharacterAvatar;
+
