@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import SceneHeader from '@/components/tavern/SceneHeader';
 import ChatWindow from '@/components/tavern/ChatWindow';
@@ -14,10 +13,10 @@ const Index = () => {
   const [activeSpeakerId, setActiveSpeakerId] = useState<string | null>(null);
   const [thinkingCharacterId, setThinkingCharacterId] = useState<string | null>(null);
   const [currentTurnAIIndex, setCurrentTurnAIIndex] = useState(0);
-  const [autoConversationTimer, setAutoConversationTimer] = useState<NodeJS.Timeout | null>(null); // Fixed syntax error here
+  const [autoConversationTimer, setAutoConversationTimer] = useState<NodeJS.Timeout | null>(null);
   const [isAutoConversationActive, setIsAutoConversationActive] = useState<boolean>(true);
 
-  const sceneDescription = "你发现自己身处于光线昏暗的"游荡翼龙"酒馆。空气中弥漫着陈年麦酒和木柴烟熏的气味。低语交谈声和酒杯碰撞声充满了整个房间。";
+  const sceneDescription = "你发现自己身处于光线昏暗的“游荡翼龙”酒馆。空气中弥漫着陈年麦酒和木柴烟熏的气味。低语交谈声和酒杯碰撞声充满了整个房间。";
 
   const addMessage = useCallback((text: string, sender: string, isPlayer: boolean, avatarColor?: string) => {
     const newMessage: Message = {
@@ -29,7 +28,7 @@ const Index = () => {
       avatarColor,
     };
     setMessages((prevMessages) => [...prevMessages, newMessage]);
-  }, []); // setMessages is stable, so empty dependency array
+  }, []);
 
   const startAutoConversation = useCallback(() => {
     if (!isAutoConversationActive || thinkingCharacterId) return; // Do not start if not active or someone is thinking
@@ -76,7 +75,7 @@ const Index = () => {
         }
       }, 1500);
     }
-  }, [aiCharacters, messages.length, addMessage, startAutoConversation, isAutoConversationActive]); // Added addMessage, startAutoConversation
+  }, [aiCharacters, messages.length, addMessage, startAutoConversation, isAutoConversationActive]);
 
   // Cleanup timer on component unmount
   useEffect(() => {
@@ -126,8 +125,7 @@ const Index = () => {
     aiCharacters, 
     currentTurnAIIndex, 
     startAutoConversation,
-    thinkingCharacterId, // Added thinkingCharacterId
-    // Setters are stable, no need to list: setAutoConversationTimer, setIsAutoConversationActive, setActiveSpeakerId, setThinkingCharacterId, setCurrentTurnAIIndex
+    thinkingCharacterId,
   ]);
 
   return (
