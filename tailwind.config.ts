@@ -61,7 +61,14 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+        // Tavern Theme Colors
+        "tavern-bg": "#4A3B31", // Deep brown for background
+        "tavern-panel-bg": "#70594A", // Lighter brown for panels/cards
+        "tavern-text": "#E0D4C3", // Creamy text color
+        "tavern-accent": "#FFC107", // Gold/Amber for accents
+        "player-message-bg": "#3B5969", // A cool, distinct color for player
+        "ai-message-bg": "#5A524C", // Slightly lighter than panel for AI messages
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
