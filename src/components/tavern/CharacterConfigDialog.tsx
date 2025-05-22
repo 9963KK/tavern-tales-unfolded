@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AICharacter, ModelConfig } from '@/types/tavern';
+import { Textarea } from '@/components/ui/textarea';
 
 interface CharacterConfigDialogProps {
   character: AICharacter | null;
@@ -17,22 +17,25 @@ const CharacterConfigDialog: React.FC<CharacterConfigDialogProps> = ({ character
   const [baseUrl, setBaseUrl] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [modelName, setModelName] = useState('');
+  const [prompt, setPrompt] = useState('');
 
   useEffect(() => {
     if (character && character.modelConfig) {
       setBaseUrl(character.modelConfig.baseUrl || '');
       setApiKey(character.modelConfig.apiKey || '');
       setModelName(character.modelConfig.modelName || '');
+      setPrompt(character.modelConfig.prompt || '');
     } else {
       setBaseUrl('');
       setApiKey('');
       setModelName('');
+      setPrompt('');
     }
   }, [character]);
 
   const handleSave = () => {
     if (character) {
-      onSave(character.id, { baseUrl, apiKey, modelName });
+      onSave(character.id, { baseUrl, apiKey, modelName, prompt });
     }
   };
 
@@ -84,6 +87,19 @@ const CharacterConfigDialog: React.FC<CharacterConfigDialogProps> = ({ character
               onChange={(e) => setModelName(e.target.value)}
               className="col-span-3 bg-tavern-bg border-tavern-text focus:border-tavern-accent"
               placeholder="例如: gpt-4o-mini"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="prompt" className="text-right col-span-1">
+              角色专属Prompt
+            </Label>
+            <Textarea
+              id="prompt"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              className="col-span-3 bg-tavern-bg border-tavern-text focus:border-tavern-accent"
+              placeholder="为该角色定制的行为/语气/背景等提示词"
+              rows={4}
             />
           </div>
         </div>

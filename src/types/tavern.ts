@@ -1,8 +1,8 @@
-
 export interface ModelConfig {
   baseUrl?: string;
   apiKey?: string;
   modelName?: string;
+  prompt?: string;
 }
 
 export interface AICharacter {

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { AICharacter } from '@/types/tavern';
 import CharacterAvatar from './CharacterAvatar';
@@ -24,7 +23,7 @@ const AvatarBar: React.FC<AvatarBarProps> = ({
 }) => {
   return (
     <div className="bg-tavern-panel-bg p-3 flex items-center justify-between rounded-b-lg shadow-md mt-2">
-      <div className="flex justify-center items-center flex-grow space-x-2 overflow-x-auto pr-2"> {/* Added overflow for many characters and padding for button */}
+      <div className="avatar-bar flex justify-center items-center flex-grow space-x-2 overflow-x-auto pr-2"> {/* Added overflow for many characters and padding for button */}
         {characters.map((char) => (
           <CharacterAvatar
             key={char.id}
