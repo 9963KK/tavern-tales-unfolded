@@ -14,8 +14,10 @@ const Index = () => {
   const [activeSpeakerId, setActiveSpeakerId] = useState<string | null>(null);
   const [thinkingCharacterId, setThinkingCharacterId] = useState<string | null>(null);
   const [currentTurnAIIndex, setCurrentTurnAIIndex] = useState(0);
+  const [autoConversationTimer, setAutoConversationTimer] = useState<NodeJS.Timeout | null>(null);
+  const [isAutoConversationActive, setIsAutoConversationActive] = useState<boolean>(true);
 
-  const sceneDescription = "你发现自己身处于光线昏暗的“游荡翼龙”酒馆。空气中弥漫着陈年麦酒和木柴烟熏的气味。低语交谈声和酒杯碰撞声充满了整个房间。";
+  const sceneDescription = "你发现自己身处于光线昏暗的"游荡翼龙"酒馆。空气中弥漫着陈年麦酒和木柴烟熏的气味。低语交谈声和酒杯碰撞声充满了整个房间。";
 
   // Initial greeting from the first AI character
   useEffect(() => {
@@ -33,10 +35,20 @@ const Index = () => {
         }]);
         setActiveSpeakerId(firstAI.id);
         setThinkingCharacterId(null);
-        setCurrentTurnAIIndex(0); // Start with the first AI for responses
+        setCurrentTurnAIIndex(1); // Start with the second AI for autonomous conversation
+        startAutoConversation();
       }, 1500);
     }
   }, [aiCharacters, messages.length]);
+
+  // Cleanup timer on component unmount
+  useEffect(() => {
+    return () => {
+      if (autoConversationTimer) {
+        clearTimeout(autoConversationTimer);
+      }
+    };
+  }, [autoConversationTimer]);
   
   const addMessage = (text: string, sender: string, isPlayer: boolean, avatarColor?: string) => {
     const newMessage: Message = {
@@ -51,10 +63,17 @@ const Index = () => {
   };
 
   const handlePlayerMessage = (text: string) => {
+    // Stop auto conversation when player speaks
+    if (autoConversationTimer) {
+      clearTimeout(autoConversationTimer);
+      setAutoConversationTimer(null);
+    }
+    setIsAutoConversationActive(false);
+    
     addMessage(text, '玩家', true);
     setActiveSpeakerId(null); // Player speaks, no AI is "active speaker" for this message
 
-    // Simulate AI response
+    // Simulate AI response to player
     const respondingAI = aiCharacters[currentTurnAIIndex % aiCharacters.length];
     setThinkingCharacterId(respondingAI.id);
 
@@ -64,8 +83,38 @@ const Index = () => {
       setActiveSpeakerId(respondingAI.id);
       setThinkingCharacterId(null);
       setCurrentTurnAIIndex(prevIndex => prevIndex + 1); // Next AI takes a turn
-    }, 1500 + Math.random() * 1000); // Random delay for AI response
+      
+      // Resume auto conversation after AI responds to player
+      setTimeout(() => {
+        setIsAutoConversationActive(true);
+        startAutoConversation();
+      }, 3000 + Math.random() * 2000);
+    }, 1500 + Math.random() * 1000);
   };
+
+  const startAutoConversation = useCallback(() => {
+    if (!isAutoConversationActive) return;
+    
+    const timer = setTimeout(() => {
+      if (thinkingCharacterId) return; // If someone is already "thinking", wait
+      
+      const nextAI = aiCharacters[currentTurnAIIndex % aiCharacters.length];
+      setThinkingCharacterId(nextAI.id);
+      
+      setTimeout(() => {
+        const aiResponseText = nextAI.responses[Math.floor(Math.random() * nextAI.responses.length)];
+        addMessage(aiResponseText, nextAI.name, false, nextAI.avatarColor);
+        setActiveSpeakerId(nextAI.id);
+        setThinkingCharacterId(null);
+        setCurrentTurnAIIndex(prevIndex => prevIndex + 1);
+        
+        // Schedule next autonomous message
+        startAutoConversation();
+      }, 1500 + Math.random() * 1000);
+    }, 4000 + Math.random() * 6000); // Random delay between 4 and 10 seconds for more natural conversation
+    
+    setAutoConversationTimer(timer);
+  }, [aiCharacters, currentTurnAIIndex, thinkingCharacterId, isAutoConversationActive]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-tavern-bg text-tavern-text">
@@ -87,4 +136,3 @@ const Index = () => {
 };
 
 export default Index;
-
