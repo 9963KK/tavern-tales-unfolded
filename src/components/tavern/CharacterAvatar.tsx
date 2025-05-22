@@ -7,16 +7,23 @@ interface CharacterAvatarProps {
   character: AICharacter;
   isActive: boolean;
   isThinking: boolean;
+  onAvatarClick?: (characterId: string) => void; // New prop
 }
 
-const CharacterAvatar: React.FC<CharacterAvatarProps> = ({ character, isActive, isThinking }) => {
+const CharacterAvatar: React.FC<CharacterAvatarProps> = ({ character, isActive, isThinking, onAvatarClick }) => {
+  const handleClick = () => {
+    if (onAvatarClick) {
+      onAvatarClick(character.id);
+    }
+  };
+
   return (
-    <div className="flex flex-col items-center mx-2">
+    <div className="flex flex-col items-center mx-2" onClick={handleClick} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && handleClick()}>
       <div
         className={`w-16 h-16 rounded-full ${character.avatarColor} flex items-center justify-center mb-1 border-2
                     ${isActive && !isThinking ? 'border-tavern-accent ring-2 ring-tavern-accent shadow-lg' : 'border-transparent'}
                     ${isThinking ? 'border-blue-400 ring-2 ring-blue-400 animate-pulse' : ''}
-                    transition-all duration-300 transform hover:scale-105 cursor-pointer`}
+                    transition-all duration-300 transform hover:scale-105 ${onAvatarClick ? 'cursor-pointer' : 'cursor-default'}`}
         title={character.name}
       >
         {isThinking ? (
@@ -34,4 +41,3 @@ const CharacterAvatar: React.FC<CharacterAvatarProps> = ({ character, isActive, 
 };
 
 export default CharacterAvatar;
-

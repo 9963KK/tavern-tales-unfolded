@@ -7,9 +7,10 @@ interface AvatarBarProps {
   characters: AICharacter[];
   activeSpeakerId: string | null;
   thinkingCharacterId: string | null;
+  onAvatarClick?: (characterId: string) => void; // New prop
 }
 
-const AvatarBar: React.FC<AvatarBarProps> = ({ characters, activeSpeakerId, thinkingCharacterId }) => {
+const AvatarBar: React.FC<AvatarBarProps> = ({ characters, activeSpeakerId, thinkingCharacterId, onAvatarClick }) => {
   return (
     <div className="bg-tavern-panel-bg p-3 flex justify-center items-center rounded-b-lg shadow-md mt-2">
       {characters.map((char) => (
@@ -18,6 +19,7 @@ const AvatarBar: React.FC<AvatarBarProps> = ({ characters, activeSpeakerId, thin
           character={char}
           isActive={activeSpeakerId === char.id}
           isThinking={thinkingCharacterId === char.id}
+          onAvatarClick={onAvatarClick} // Pass down the handler
         />
       ))}
     </div>

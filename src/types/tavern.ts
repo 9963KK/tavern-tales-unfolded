@@ -1,4 +1,10 @@
 
+export interface ModelConfig {
+  baseUrl?: string;
+  apiKey?: string;
+  modelName?: string;
+}
+
 export interface AICharacter {
   id: string;
   name: string;
@@ -6,6 +12,7 @@ export interface AICharacter {
   placeholderIcon?: string; // URL or path to an icon if we use images later
   greeting: string;
   responses: string[]; // A list of possible responses
+  modelConfig?: ModelConfig; // New field for model configuration
 }
 
 export interface Message {
@@ -16,3 +23,4 @@ export interface Message {
   timestamp: Date;
   avatarColor?: string; // For AI messages
 }
+
