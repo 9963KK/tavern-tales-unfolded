@@ -14,10 +14,52 @@ const Index = () => {
   const [activeSpeakerId, setActiveSpeakerId] = useState<string | null>(null);
   const [thinkingCharacterId, setThinkingCharacterId] = useState<string | null>(null);
   const [currentTurnAIIndex, setCurrentTurnAIIndex] = useState(0);
-  const [autoConversationTimer, setAutoConversationTimer] = useState<NodeJS.Timeout | null>(null);
+  const [autoConversationTimer, setAutoConversationTimer] = useState<NodeJS.Timeout | null>(null); // Fixed syntax error here
   const [isAutoConversationActive, setIsAutoConversationActive] = useState<boolean>(true);
 
-  const sceneDescription = "你发现自己身处于光线昏暗的"游荡翼龙"酒馆。空气中弥漫着陈年麦酒和木柴烟熏的气味。低语交谈声和酒杯碰撞声充满了整个房间。";
+  const sceneDescription = "你发现自己身处于光线昏暗的“游荡翼龙”酒馆。空气中弥漫着陈年麦酒和木柴烟熏的气味。低语交谈声和酒杯碰撞声充满了整个房间。";
+
+  const addMessage = useCallback((text: string, sender: string, isPlayer: boolean, avatarColor?: string) => {
+    const newMessage: Message = {
+      id: uuidv4(),
+      sender,
+      text,
+      isPlayer,
+      timestamp: new Date(),
+      avatarColor,
+    };
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+  }, []); // setMessages is stable, so empty dependency array
+
+  const startAutoConversation = useCallback(() => {
+    if (!isAutoConversationActive || thinkingCharacterId) return; // Do not start if not active or someone is thinking
+    
+    const timer = setTimeout(() => {
+      // Double check thinkingCharacterId again inside timeout, in case player spoke.
+      if (!isAutoConversationActive || thinkingCharacterId) return; 
+
+      const nextAI = aiCharacters[currentTurnAIIndex % aiCharacters.length];
+      setThinkingCharacterId(nextAI.id);
+      
+      setTimeout(() => {
+        // Check again before sending message
+        if (!isAutoConversationActive) {
+          setThinkingCharacterId(null); // Clear thinking if auto conversation was stopped
+          return;
+        }
+        const aiResponseText = nextAI.responses[Math.floor(Math.random() * nextAI.responses.length)];
+        addMessage(aiResponseText, nextAI.name, false, nextAI.avatarColor);
+        setActiveSpeakerId(nextAI.id);
+        setThinkingCharacterId(null);
+        setCurrentTurnAIIndex(prevIndex => (prevIndex + 1) % aiCharacters.length); // Cycle through AIs
+        
+        startAutoConversation(); // Schedule next autonomous message
+      }, 1500 + Math.random() * 1000); // Thinking time
+    }, 4000 + Math.random() * 6000); // Random delay between 4 and 10 seconds
+    
+    setAutoConversationTimer(timer);
+  }, [aiCharacters, currentTurnAIIndex, thinkingCharacterId, isAutoConversationActive, addMessage, setActiveSpeakerId, setThinkingCharacterId, setCurrentTurnAIIndex, setAutoConversationTimer]);
+
 
   // Initial greeting from the first AI character
   useEffect(() => {
@@ -25,21 +67,16 @@ const Index = () => {
       const firstAI = aiCharacters[0];
       setThinkingCharacterId(firstAI.id);
       setTimeout(() => {
-        setMessages([{
-          id: uuidv4(),
-          sender: firstAI.name,
-          text: firstAI.greeting,
-          isPlayer: false,
-          timestamp: new Date(),
-          avatarColor: firstAI.avatarColor,
-        }]);
+        addMessage(firstAI.greeting, firstAI.name, false, firstAI.avatarColor);
         setActiveSpeakerId(firstAI.id);
         setThinkingCharacterId(null);
-        setCurrentTurnAIIndex(1); // Start with the second AI for autonomous conversation
-        startAutoConversation();
+        setCurrentTurnAIIndex(1 % aiCharacters.length); // Next AI for autonomous conversation
+        if (isAutoConversationActive) { // Check before starting
+          startAutoConversation();
+        }
       }, 1500);
     }
-  }, [aiCharacters, messages.length]);
+  }, [aiCharacters, messages.length, addMessage, startAutoConversation, isAutoConversationActive]); // Added addMessage, startAutoConversation
 
   // Cleanup timer on component unmount
   useEffect(() => {
@@ -50,31 +87,22 @@ const Index = () => {
     };
   }, [autoConversationTimer]);
   
-  const addMessage = (text: string, sender: string, isPlayer: boolean, avatarColor?: string) => {
-    const newMessage: Message = {
-      id: uuidv4(),
-      sender,
-      text,
-      isPlayer,
-      timestamp: new Date(),
-      avatarColor,
-    };
-    setMessages((prevMessages) => [...prevMessages, newMessage]);
-  };
-
-  const handlePlayerMessage = (text: string) => {
-    // Stop auto conversation when player speaks
+  const handlePlayerMessage = useCallback((text: string) => {
     if (autoConversationTimer) {
       clearTimeout(autoConversationTimer);
       setAutoConversationTimer(null);
     }
-    setIsAutoConversationActive(false);
+    setIsAutoConversationActive(false); // Pause auto conversation
+    // If an AI was thinking, interrupt it
+    if (thinkingCharacterId) {
+        setThinkingCharacterId(null);
+    }
     
     addMessage(text, '玩家', true);
-    setActiveSpeakerId(null); // Player speaks, no AI is "active speaker" for this message
+    setActiveSpeakerId(null); 
 
-    // Simulate AI response to player
-    const respondingAI = aiCharacters[currentTurnAIIndex % aiCharacters.length];
+    const respondingAIIndex = currentTurnAIIndex % aiCharacters.length;
+    const respondingAI = aiCharacters[respondingAIIndex];
     setThinkingCharacterId(respondingAI.id);
 
     setTimeout(() => {
@@ -82,39 +110,25 @@ const Index = () => {
       addMessage(aiResponseText, respondingAI.name, false, respondingAI.avatarColor);
       setActiveSpeakerId(respondingAI.id);
       setThinkingCharacterId(null);
-      setCurrentTurnAIIndex(prevIndex => prevIndex + 1); // Next AI takes a turn
+      // Player spoke, so the "turn" effectively passes.
+      // The next AI in sequence will speak either in response or autonomously next.
+      setCurrentTurnAIIndex((respondingAIIndex + 1) % aiCharacters.length); 
       
       // Resume auto conversation after AI responds to player
       setTimeout(() => {
         setIsAutoConversationActive(true);
         startAutoConversation();
-      }, 3000 + Math.random() * 2000);
+      }, 3000 + Math.random() * 2000); // Delay before resuming auto-chat
     }, 1500 + Math.random() * 1000);
-  };
-
-  const startAutoConversation = useCallback(() => {
-    if (!isAutoConversationActive) return;
-    
-    const timer = setTimeout(() => {
-      if (thinkingCharacterId) return; // If someone is already "thinking", wait
-      
-      const nextAI = aiCharacters[currentTurnAIIndex % aiCharacters.length];
-      setThinkingCharacterId(nextAI.id);
-      
-      setTimeout(() => {
-        const aiResponseText = nextAI.responses[Math.floor(Math.random() * nextAI.responses.length)];
-        addMessage(aiResponseText, nextAI.name, false, nextAI.avatarColor);
-        setActiveSpeakerId(nextAI.id);
-        setThinkingCharacterId(null);
-        setCurrentTurnAIIndex(prevIndex => prevIndex + 1);
-        
-        // Schedule next autonomous message
-        startAutoConversation();
-      }, 1500 + Math.random() * 1000);
-    }, 4000 + Math.random() * 6000); // Random delay between 4 and 10 seconds for more natural conversation
-    
-    setAutoConversationTimer(timer);
-  }, [aiCharacters, currentTurnAIIndex, thinkingCharacterId, isAutoConversationActive]);
+  }, [
+    autoConversationTimer, 
+    addMessage, 
+    aiCharacters, 
+    currentTurnAIIndex, 
+    startAutoConversation,
+    thinkingCharacterId, // Added thinkingCharacterId
+    // Setters are stable, no need to list: setAutoConversationTimer, setIsAutoConversationActive, setActiveSpeakerId, setThinkingCharacterId, setCurrentTurnAIIndex
+  ]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-tavern-bg text-tavern-text">
@@ -128,7 +142,7 @@ const Index = () => {
         />
         <InputArea 
           onSendMessage={handlePlayerMessage} 
-          isAIThinking={!!thinkingCharacterId} 
+          isAIThinking={!!thinkingCharacterId && !messages.some(m => m.isPlayer && m.id === thinkingCharacterId)} // AI is thinking if thinkingCharacterId is set (unless it's a player message ID, which is not the case here)
         />
       </div>
     </div>
@@ -136,3 +150,4 @@ const Index = () => {
 };
 
 export default Index;
+
