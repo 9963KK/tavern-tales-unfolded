@@ -17,7 +17,7 @@ const Index = () => {
   const [autoConversationTimer, setAutoConversationTimer] = useState<NodeJS.Timeout | null>(null); // Fixed syntax error here
   const [isAutoConversationActive, setIsAutoConversationActive] = useState<boolean>(true);
 
-  const sceneDescription = "你发现自己身处于光线昏暗的“游荡翼龙”酒馆。空气中弥漫着陈年麦酒和木柴烟熏的气味。低语交谈声和酒杯碰撞声充满了整个房间。";
+  const sceneDescription = "你发现自己身处于光线昏暗的"游荡翼龙"酒馆。空气中弥漫着陈年麦酒和木柴烟熏的气味。低语交谈声和酒杯碰撞声充满了整个房间。";
 
   const addMessage = useCallback((text: string, sender: string, isPlayer: boolean, avatarColor?: string) => {
     const newMessage: Message = {
@@ -150,4 +150,3 @@ const Index = () => {
 };
 
 export default Index;
-
