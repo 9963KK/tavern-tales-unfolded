@@ -44,7 +44,7 @@ const CharacterAvatar: React.FC<CharacterAvatarProps> = ({ character, isActive, 
         </div>
       </div>
       {/* 角色名 */}
-      <p className={`text-xs text-center w-full truncate px-1 ${isActive || isThinking ? 'text-tavern-accent font-semibold' : 'text-tavern-text'}`}>
+      <p className={`text-xs text-center w-full truncate px-1 font-medium ${isActive || isThinking ? 'text-tavern-accent font-semibold' : 'text-white'}`}>
         {character.name}
       </p>
       {/* 状态栏（高度固定，始终占位） */}
