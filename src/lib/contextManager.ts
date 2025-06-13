@@ -290,7 +290,7 @@ export class ContextManager {
 
     // 如果消息中有角色相关内容，使用个性化
     const characterMentions = pruningResult.prunedMessages.filter(msg => 
-      msg.content.includes(character.name) || msg.characterId === character.id
+      (msg.text || '').includes(character.name) || msg.characterId === character.id
     );
     
     return characterMentions.length > 0;
@@ -316,11 +316,12 @@ export class ContextManager {
    */
   private estimateTokens(messages: Message[]): number {
     return messages.reduce((total, msg) => {
-      const chineseCharCount = (msg.content.match(/[\u4e00-\u9fff]/g) || []).length;
-      const englishWordCount = msg.content.split(/\s+/).filter(word => 
+      const text = msg.text || '';
+      const chineseCharCount = (text.match(/[\u4e00-\u9fff]/g) || []).length;
+      const englishWordCount = text.split(/\s+/).filter(word => 
         word.length > 0 && !/[\u4e00-\u9fff]/.test(word)
       ).length;
-      const specialCharCount = (msg.content.match(/[^\w\s\u4e00-\u9fff]/g) || []).length;
+      const specialCharCount = (text.match(/[^\w\s\u4e00-\u9fff]/g) || []).length;
       
       return total + Math.ceil(chineseCharCount * 1.5 + englishWordCount * 1 + specialCharCount * 0.5);
     }, 0);
@@ -340,7 +341,7 @@ export class ContextManager {
    * 消息哈希
    */
   private hashMessages(messages: Message[]): string {
-    const content = messages.map(m => `${m.id}_${m.content.length}`).join('|');
+    const content = messages.map(m => `${m.id}_${(m.text || '').length}`).join('|');
     let hash = 0;
     for (let i = 0; i < content.length; i++) {
       const char = content.charCodeAt(i);

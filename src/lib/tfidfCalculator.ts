@@ -90,13 +90,14 @@ export class TFIDFCalculator {
     segmentResult: SegmentResult;
   }> {
     return documents.map(doc => {
-      const cacheKey = `segment_${doc.id}_${this.hashString(doc.content)}`;
+      const content = doc.content || '';
+      const cacheKey = `segment_${doc.id}_${this.hashString(content)}`;
       
       let segmentResult: SegmentResult;
       if (this.enableCaching && this.cache.has(cacheKey)) {
         segmentResult = this.cache.get(cacheKey);
       } else {
-        segmentResult = this.textProcessor.segmentText(doc.content);
+        segmentResult = this.textProcessor.segmentText(content);
         if (this.enableCaching) {
           this.cache.set(cacheKey, segmentResult);
         }
@@ -104,7 +105,7 @@ export class TFIDFCalculator {
 
       return {
         id: doc.id,
-        content: doc.content,
+        content,
         segmentResult
       };
     });
@@ -342,7 +343,7 @@ export class TFIDFCalculator {
    */
   addDocument(document: { id: string; content: string }): TFIDFVector {
     // 预处理新文档
-    const segmentResult = this.textProcessor.segmentText(document.content);
+    const segmentResult = this.textProcessor.segmentText(document.content || '');
     const { filteredWords } = segmentResult;
     const uniqueWords = new Set(filteredWords);
 

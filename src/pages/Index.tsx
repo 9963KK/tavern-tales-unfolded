@@ -51,6 +51,10 @@ import { useAutoConversationDebugger } from '@/hooks/useAutoConversationDebugger
 import { useMultiResponseDisplay } from '@/hooks/useMultiResponseDisplay';
 import { estimateTokens } from '@/utils/tokenCounter';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { EmotionEngine } from '@/lib/emotionEngine';
+import { createDefaultEmotionalState, EmotionType } from '@/types/emotion';
+import { conversationEnhancer } from '@/lib/conversationPromptEnhancer';
+import InitialSetupDialog, { type ModelConfig as SetupModelConfig, type ScenarioConfig } from '@/components/tavern/InitialSetupDialog';
 
 // Token使用统计接口
 interface TokenUsage {
@@ -74,8 +78,16 @@ interface HistorySession {
 }
 
 const Index = () => {
+  // 初始设置状态
+  const [isInitialSetupOpen, setIsInitialSetupOpen] = useState<boolean>(true);
+  const [isInitializing, setIsInitializing] = useState<boolean>(false);
+  const [isSetupComplete, setIsSetupComplete] = useState<boolean>(false);
+  
   const [messages, setMessages] = useState<Message[]>([]);
-  const [aiCharacters, setAiCharacters] = useState<AICharacter[]>(initialAICharacters);
+  const [aiCharacters, setAiCharacters] = useState<AICharacter[]>([]);
+  
+  // 情感分析引擎
+  const emotionEngine = useRef(new EmotionEngine()).current;
   const [activeSpeakerId, setActiveSpeakerId] = useState<string | null>(null);
   const [thinkingCharacterId, setThinkingCharacterId] = useState<string | null>(null);
   const [currentTurnAIIndex, setCurrentTurnAIIndex] = useState<number>(0);
@@ -159,9 +171,7 @@ const Index = () => {
   const [isHistoryPanelCollapsed, setIsHistoryPanelCollapsed] = useState<boolean>(false);
 
   // 场景描述状态
-  const [sceneDescription, setSceneDescription] = useState<string>(
-    '你发现自己身处于光线昏暗的"游荡翼龙"酒馆。空气中弥漫着陈年麦酒和木柴烟熏的气味。低语交谈声和酒杯碰撞声充满了整个房间。'
-  );
+  const [sceneDescription, setSceneDescription] = useState<string>('');
   const [isSceneEditDialogOpen, setIsSceneEditDialogOpen] = useState<boolean>(false);
 
   // 消息摘要系统状态
@@ -171,9 +181,9 @@ const Index = () => {
   // 上下文管理系统状态
   const [isContextManagerOpen, setIsContextManagerOpen] = useState<boolean>(false);
   
-  // 初始化增强AI响应系统
+  // 初始化增强AI响应系统和情感系统
   useEffect(() => {
-    if (!hasInitialized.current && aiCharacters.length > 0) {
+    if (!hasInitialized.current && aiCharacters.length > 0 && isSetupComplete) {
       try {
         initializeEnhancedAIResponse({
           enableContextPruning: true,
@@ -183,12 +193,39 @@ const Index = () => {
           logContextInfo: true
         });
         console.log('🧠 增强AI响应系统已初始化');
+        
+        // 初始化角色的基线情感状态
+        setAiCharacters(prevCharacters => 
+          prevCharacters.map(character => {
+            if (!character.currentEmotionalState) {
+              // 根据角色个性设置基线情感
+              let baselineEmotion = EmotionType.NEUTRAL;
+              if (character.personality) {
+                if (character.personality.extroversion > 0.7) {
+                  baselineEmotion = EmotionType.HAPPY;
+                } else if (character.personality.extroversion < 0.3) {
+                  baselineEmotion = EmotionType.CALM;
+                }
+              }
+              
+              return {
+                ...character,
+                baselineEmotion,
+                currentEmotionalState: createDefaultEmotionalState(baselineEmotion),
+                emotionalHistory: []
+              };
+            }
+            return character;
+          })
+        );
+        console.log('😊 角色情感状态已初始化');
+        
         hasInitialized.current = true;
       } catch (error) {
-        console.error('❌ 增强AI响应系统初始化失败:', error);
+        console.error('❌ 系统初始化失败:', error);
       }
     }
-  }, [aiCharacters]);
+  }, [aiCharacters, isSetupComplete]);
 
   // 当角色列表发生变化时更新增强AI响应系统
   useEffect(() => {
@@ -252,7 +289,7 @@ const Index = () => {
     return Math.ceil(chineseChars * 1.5 + englishWords);
   }, []);
 
-  const addMessage = useCallback((text: string, sender: string, isPlayer: boolean, avatarColor?: string) => {
+  const addMessage = useCallback((text: string, sender: string, isPlayer: boolean, avatarColor?: string, emotionAnalysisResult?: any, updatedCharacter?: AICharacter) => {
     const newMessage: Message = {
       id: uuidv4(),
       sender,
@@ -260,8 +297,18 @@ const Index = () => {
       isPlayer,
       timestamp: new Date(),
       avatarColor,
+      emotionAnalysisResult,
     };
     setMessages((prevMessages) => [...prevMessages, newMessage]);
+    
+    // 如果有更新的角色情感状态，应用到角色列表中
+    if (updatedCharacter && !isPlayer) {
+      setAiCharacters(prevCharacters => 
+        prevCharacters.map(char => 
+          char.id === updatedCharacter.id ? updatedCharacter : char
+        )
+      );
+    }
   }, []);
 
   // 更新角色最后发言时间
@@ -563,6 +610,7 @@ const Index = () => {
         return;
       }
       
+
       // 异步选择下一个发言者
       const nextAIIndex = await selectNextSpeakerIndex();
       
@@ -601,12 +649,14 @@ const Index = () => {
         }
         let aiResponseText = null;
         // 尝试用大模型API回复
-        aiResponseText = await fetchAIResponse(nextAI, messages, updateTokenUsage, estimateTokens);
+        aiResponseText = await fetchAIResponse(nextAI, messages, updateTokenUsage, estimateTokens, emotionEngine);
         if (!aiResponseText) {
           // 回退本地responses
           aiResponseText = nextAI.responses[Math.floor(Math.random() * nextAI.responses.length)];
         }
         console.log(`✅ ${nextAI.name} (ID: ${nextAI.id}, Index: ${nextAIIndex}) 发言完成. Config:`, nextAI.modelConfig);
+        
+        // aiResponseText 现在是纯字符串，不需要额外处理
         addMessage(aiResponseText, nextAI.name, false, nextAI.avatarColor);
         updateCharacterLastSpeakTime(nextAI.id); // 更新最后发言时间
         setActiveSpeakerId(nextAI.id);
@@ -781,7 +831,7 @@ const Index = () => {
       // 生成AI响应
       let aiResponseText = null;
       try {
-        aiResponseText = await fetchAIResponse(character, messages, updateTokenUsage, estimateTokens);
+        aiResponseText = await fetchAIResponse(character, messages, updateTokenUsage, estimateTokens, emotionEngine);
       } catch (error) {
         console.error(`${character.name} AI响应失败:`, error);
         // 标记响应错误
@@ -879,11 +929,12 @@ const Index = () => {
 
     setTimeout(async () => {
       let aiResponseText = null;
-      aiResponseText = await fetchAIResponse(respondingAI, messages, updateTokenUsage, estimateTokens);
+              aiResponseText = await fetchAIResponse(respondingAI, messages, updateTokenUsage, estimateTokens, emotionEngine);
       if (!aiResponseText) {
         aiResponseText = respondingAI.responses[Math.floor(Math.random() * respondingAI.responses.length)];
       }
       console.log(`${respondingAI.name} (ID: ${respondingAI.id}, Index: ${respondingAIIndex}) is responding to player. Config:`, respondingAI.modelConfig);
+      // aiResponseText 现在是纯字符串，直接使用
       addMessage(aiResponseText, respondingAI.name, false, respondingAI.avatarColor);
       updateCharacterLastSpeakTime(respondingAI.id);
       setActiveSpeakerId(respondingAI.id);
@@ -917,17 +968,35 @@ const Index = () => {
       setThinkingCharacterId(null); 
     }
 
-    // 创建消息，包含@提及信息
+    // 分析玩家消息的情感
+    const playerEmotionAnalysis = emotionEngine.analyzeText(text);
+    console.log('😊 玩家消息情感分析:', playerEmotionAnalysis);
+
+    // 创建消息，包含@提及信息和情感分析结果
     const newMessage = {
       id: crypto.randomUUID(),
       sender: '玩家',
       text,
       isPlayer: true,
       timestamp: new Date(),
-      mentionedCharacters: mentionResult?.mentionedCharacters || []
+      mentionedCharacters: mentionResult?.mentionedCharacters || [],
+      emotionAnalysisResult: playerEmotionAnalysis
     };
     setMessages((prevMessages) => [...prevMessages, newMessage]);
     setActiveSpeakerId(null); 
+
+    // 更新所有角色的情感状态（情感传染）
+    setAiCharacters(prevCharacters => 
+      prevCharacters.map(character => {
+        const updatedCharacter = emotionEngine.updateCharacterEmotion(
+          character, 
+          text, 
+          playerEmotionAnalysis,
+          'player_message'
+        );
+        return updatedCharacter;
+      })
+    );
 
     // 记录玩家消息时间
     setLastPlayerMessageTime(Date.now());
@@ -1112,9 +1181,9 @@ const Index = () => {
             "还有什么其他的吗？"
           ],
           modelConfig: {
-            baseUrl: modelDefaults.baseUrl,
-            apiKey: modelDefaults.apiKey,
-            modelName: modelDefaults.modelName,
+            baseUrl: sceneAnalysisConfig.baseUrl,
+            apiKey: sceneAnalysisConfig.apiKey,
+            modelName: sceneAnalysisConfig.modelName,
             prompt: char.prompt
           },
           // 新的自然发言机制属性
@@ -1173,10 +1242,12 @@ const Index = () => {
   };
 
   const handleOpenSceneConfigDialog = () => {
+    console.log('🔧 打开配置生成模型对话框');
     setIsSceneConfigDialogOpen(true);
   };
 
   const handleCloseSceneConfigDialog = () => {
+    console.log('🔧 关闭配置生成模型对话框');
     setIsSceneConfigDialogOpen(false);
   };
 
@@ -1308,11 +1379,132 @@ const Index = () => {
     setIsContextManagerOpen(!isContextManagerOpen);
   };
 
+  // 处理初始设置完成
+  const handleInitialSetupComplete = async (
+    modelConfig: SetupModelConfig, 
+    scenario: ScenarioConfig | null, 
+    customSceneDescription?: string
+  ) => {
+    setIsInitializing(true);
+    
+    try {
+      // 更新模型配置
+      setSceneAnalysisConfig({
+        baseUrl: modelConfig.baseUrl,
+        apiKey: modelConfig.apiKey,
+        modelName: modelConfig.modelName,
+      });
+
+      // 设置场景描述
+      const finalSceneDescription = customSceneDescription || scenario?.setting || '';
+      setSceneDescription(finalSceneDescription);
+
+      // 生成角色
+      if (finalSceneDescription) {
+        const generatedCharacters = await generateCharactersFromScene(finalSceneDescription);
+        if (generatedCharacters && generatedCharacters.length > 0) {
+          // 处理生成的角色数据，添加ID和其他必要字段
+          const newCharacters = generatedCharacters.map((char: any, index: number) => ({
+            id: `generated_${Date.now()}_${index}`,
+            name: char.name,
+            avatarColor: char.avatarColor || 'bg-gray-500',
+            greeting: char.greeting,
+            responses: [
+              "让我想想...",
+              "这很有趣。",
+              "继续说。",
+              "嗯，我明白了。",
+              "还有什么其他的吗？"
+            ],
+            modelConfig: {
+              baseUrl: modelConfig.baseUrl,
+              apiKey: modelConfig.apiKey,
+              modelName: modelConfig.modelName,
+              prompt: char.prompt
+            },
+            // 新的自然发言机制属性
+            personality: char.personality || {
+              extroversion: 0.5,
+              curiosity: 0.5,
+              talkativeness: 0.5,
+              reactivity: 0.5
+            },
+            interests: char.interests || ['一般话题'],
+            speakingStyle: char.speakingStyle || 'reactive',
+            socialRole: char.socialRole || 'customer',
+            emotionalState: char.emotionalState || 0.0
+          }));
+          
+          setAiCharacters(newCharacters);
+          console.log('✅ 初始角色生成完成:', newCharacters.length, newCharacters);
+          
+          // 添加初始欢迎消息来启动对话
+          setTimeout(() => {
+            // 添加场景介绍消息
+            addMessage(
+              `🏰 欢迎来到${finalSceneDescription.split('。')[0]}！新的冒险即将开始...`,
+              '系统',
+              false,
+              'bg-blue-500'
+            );
+            
+            // 延迟添加一个角色的问候语来启动对话
+            setTimeout(() => {
+              if (newCharacters.length > 0 && newCharacters[0].greeting) {
+                addMessage(
+                  newCharacters[0].greeting,
+                  newCharacters[0].name,
+                  false,
+                  newCharacters[0].avatarColor
+                );
+                
+                // 确保自动对话已启用
+                setIsAutoConversationActive(true);
+                console.log('🗣️ 初始对话已启动');
+              }
+            }, 1500);
+          }, 500);
+        } else {
+          throw new Error('角色生成失败，请检查场景描述或网络连接');
+        }
+      } else {
+        throw new Error('场景描述不能为空');
+      }
+
+      // 标记设置完成
+      setIsSetupComplete(true);
+      setIsInitialSetupOpen(false);
+      
+      console.log('🎉 初始设置完成');
+    } catch (error) {
+      console.error('❌ 初始设置失败:', error);
+      alert('初始设置失败，请重试或检查网络连接');
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+
   // 对话框状态管理
   const [isMultiResponseConfigOpen, setIsMultiResponseConfigOpen] = useState<boolean>(false);
 
   return (
     <div className="min-h-screen flex bg-tavern-bg text-tavern-text">
+      {/* 初始设置对话框 */}
+      <InitialSetupDialog
+        isOpen={isInitialSetupOpen}
+        onClose={() => {
+          // 如果用户关闭对话框但没有完成设置，询问是否要退出应用
+          if (!isSetupComplete) {
+            if (confirm('初始设置尚未完成，是否要关闭应用？')) {
+              setIsInitialSetupOpen(false);
+            }
+          } else {
+            setIsInitialSetupOpen(false);
+          }
+        }}
+        onComplete={handleInitialSetupComplete}
+        isLoading={isInitializing}
+      />
       {/* 左侧历史统计面板 - 固定高度避免影响中间布局 */}
       <div className="h-screen flex-shrink-0">
         <HistoryPanel
@@ -1492,12 +1684,29 @@ const Index = () => {
   );
 };
 
-// 增强版AI响应函数（集成动态上下文裁剪系统）
-async function fetchAIResponse(character, messages, updateTokenUsageFn, estimateTokensFn) {
+// 增强版AI响应函数（集成动态上下文裁剪系统和情感分析）
+async function fetchAIResponse(character, messages, updateTokenUsageFn, estimateTokensFn, emotionEngine) {
   try {
+    // 生成对话连贯性和剧情推进的增强提示词
+    const conversationEnhancement = conversationEnhancer.generateFullEnhancedPrompt(messages, character);
+    const topicContinuity = conversationEnhancer.checkTopicContinuity(messages, character);
+    
+    // 将增强提示词添加到角色的原始提示词中
+    const originalPrompt = character.modelConfig?.prompt || '';
+    const enhancedPrompt = originalPrompt + conversationEnhancement + topicContinuity;
+    
+    // 创建增强后的角色配置
+    const enhancedCharacter = {
+      ...character,
+      modelConfig: {
+        ...character.modelConfig,
+        prompt: enhancedPrompt
+      }
+    };
+
     // 使用增强版AI响应函数，集成动态上下文裁剪系统
     const result = await fetchEnhancedAIResponse(
-      character,
+      enhancedCharacter,  // 使用增强后的角色配置
       messages,
       updateTokenUsageFn,
       estimateTokensFn,
@@ -1537,11 +1746,32 @@ async function fetchAIResponse(character, messages, updateTokenUsageFn, estimate
       });
     }
 
+    // 对AI响应进行情感分析
+    if (result.response && emotionEngine) {
+      const aiEmotionAnalysis = emotionEngine.analyzeText(result.response);
+      console.log(`😊 ${character.name}的响应情感分析:`, aiEmotionAnalysis);
+      
+      // 更新角色的情感状态
+      const updatedCharacter = emotionEngine.updateCharacterEmotion(
+        character,
+        result.response,
+        aiEmotionAnalysis,
+        'ai_response'
+      );
+      
+      // 将额外信息存储到全局状态或其他地方，但只返回文本
+      // TODO: 可以考虑将情感分析和角色更新信息存储到其他地方
+      console.log('💾 存储情感分析结果:', aiEmotionAnalysis);
+      console.log('🔄 角色状态已更新:', updatedCharacter.name);
+      
+      return result.response;
+    }
+
     return result.response;
   } catch (error) {
     console.error('❌ AI响应函数执行失败:', error);
     
-    // 回退到原始实现
+    // 回退到原始实现（也包含对话增强）
     console.log('🔄 使用原始AI响应函数作为回退...');
     const config = {
       baseUrl: character.modelConfig?.baseUrl || modelDefaults.baseUrl,
@@ -1560,8 +1790,13 @@ async function fetchAIResponse(character, messages, updateTokenUsageFn, estimate
     }
     
     try {
+      // 即使在回退模式下，也添加对话增强提示词
+      const conversationEnhancement = conversationEnhancer.generateFullEnhancedPrompt(messages, character);
+      const topicContinuity = conversationEnhancer.checkTopicContinuity(messages, character);
+      const enhancedPrompt = config.prompt + conversationEnhancement + topicContinuity;
+      
       const requestMessages = [
-        ...(config.prompt ? [{ role: 'system', content: config.prompt }] : []),
+        ...(enhancedPrompt ? [{ role: 'system', content: enhancedPrompt }] : []),
         ...messages.map(m => ({ role: m.isPlayer ? 'user' : 'assistant', content: m.text }))
       ];
       
@@ -1594,7 +1829,7 @@ async function fetchAIResponse(character, messages, updateTokenUsageFn, estimate
         let outputTokens = data.usage?.completion_tokens;
         
         if (!inputTokens || !outputTokens) {
-          const inputText = requestMessages.map(m => m.content).join(' ');
+          const inputText = requestMessages.map(m => m.text || '').join(' ');
           inputTokens = estimateTokensFn(inputText);
           outputTokens = estimateTokensFn(responseContent);
         }

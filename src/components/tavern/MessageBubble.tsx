@@ -13,8 +13,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 
   // 处理@提及高亮的文本渲染
   const renderTextWithMentions = (text: string, mentionedCharacters?: string[]) => {
+    // 确保text是字符串类型
+    const safeText = typeof text === 'string' ? text : String(text || '');
+    
     if (!mentionedCharacters || mentionedCharacters.length === 0) {
-      return <span>{text}</span>;
+      return <span>{safeText}</span>;
     }
 
     // 创建正则表达式来匹配@提及
@@ -23,10 +26,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
     let lastIndex = 0;
     let match;
 
-    while ((match = mentionRegex.exec(text)) !== null) {
+    while ((match = mentionRegex.exec(safeText)) !== null) {
       // 添加@符号前的文本
       if (match.index > lastIndex) {
-        parts.push(text.substring(lastIndex, match.index));
+        parts.push(safeText.substring(lastIndex, match.index));
       }
 
       // 检查是否是有效的@提及
@@ -56,8 +59,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
     }
 
     // 添加剩余的文本
-    if (lastIndex < text.length) {
-      parts.push(text.substring(lastIndex));
+    if (lastIndex < safeText.length) {
+      parts.push(safeText.substring(lastIndex));
     }
 
     return <span>{parts}</span>;

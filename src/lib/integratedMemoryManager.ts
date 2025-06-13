@@ -1343,7 +1343,7 @@ export class IntegratedMemoryManager {
         // 检查是否有矛盾的情感状态
         const emotions = groupMemories
           .filter(m => m.type === MemoryType.EMOTIONAL)
-          .map(m => m.content?.emotion);
+          .map(m => (m.content as any)?.emotion || 'unknown');
         
         if (emotions.length > 1 && new Set(emotions).size > 1) {
           conflicts.push({

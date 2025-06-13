@@ -1,6 +1,8 @@
 import React from 'react';
 import { AICharacter } from '@/types/tavern';
 import { User, Loader2 } from 'lucide-react'; // User for generic, Loader2 for thinking
+import { EmotionIndicator } from './EmotionIndicator';
+import { createDefaultEmotionalState, EmotionType } from '@/types/emotion';
 
 interface CharacterAvatarProps {
   character: AICharacter;
@@ -42,6 +44,18 @@ const CharacterAvatar: React.FC<CharacterAvatarProps> = ({ character, isActive, 
             <User size={32} className="text-white opacity-80" />
           )}
         </div>
+        
+        {/* 情感指示器 */}
+        {character.currentEmotionalState && (
+          <div className="absolute -bottom-1 -right-1 z-20">
+            <EmotionIndicator
+              emotion={character.currentEmotionalState}
+              size="small"
+              showTooltip={true}
+              animated={true}
+            />
+          </div>
+        )}
       </div>
       {/* 角色名 */}
       <p className={`text-xs text-center w-full truncate px-1 font-medium ${isActive || isThinking ? 'text-tavern-accent font-semibold' : 'text-white'}`}>

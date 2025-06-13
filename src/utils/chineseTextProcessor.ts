@@ -22,6 +22,15 @@ interface SegmentationCache {
   [key: string]: string[];
 }
 
+// 分词结果接口
+export interface SegmentResult {
+  originalText: string;
+  filteredWords: string[];
+  keywords: string[];
+  wordCount: number;
+  processingTime: number;
+}
+
 // 关键词提取结果
 interface KeywordExtractionResult {
   word: string;
@@ -40,15 +49,32 @@ export class ChineseTextProcessor {
   /**
    * 中文文本分词 - 简化版本
    */
-  segmentText(text: string): string[] {
+  segmentText(text: string): SegmentResult {
+    const startTime = Date.now();
+    
     if (!text || text.trim().length === 0) {
-      return [];
+      return {
+        originalText: text || '',
+        filteredWords: [],
+        keywords: [],
+        wordCount: 0,
+        processingTime: Date.now() - startTime
+      };
     }
 
     // 检查缓存
     const cacheKey = text.trim();
     if (this.cache[cacheKey]) {
-      return this.cache[cacheKey];
+      const cachedWords = this.cache[cacheKey];
+      const keywords = this.extractKeywords(text, 5, cachedWords).map(k => k.word);
+      
+      return {
+        originalText: text,
+        filteredWords: cachedWords,
+        keywords,
+        wordCount: cachedWords.length,
+        processingTime: Date.now() - startTime
+      };
     }
 
     try {
@@ -58,10 +84,25 @@ export class ChineseTextProcessor {
       // 缓存结果
       this.saveToCache(cacheKey, words);
       
-      return words;
+      // 提取关键词（传入已分词的结果，避免重复分词）
+      const keywords = this.extractKeywords(text, 5, words).map(k => k.word);
+      
+      return {
+        originalText: text,
+        filteredWords: words,
+        keywords,
+        wordCount: words.length,
+        processingTime: Date.now() - startTime
+      };
     } catch (error) {
       console.warn('文本分词失败，返回原文:', error);
-      return [text];
+      return {
+        originalText: text,
+        filteredWords: [text],
+        keywords: [text],
+        wordCount: 1,
+        processingTime: Date.now() - startTime
+      };
     }
   }
 
@@ -217,8 +258,9 @@ export class ChineseTextProcessor {
   /**
    * 提取关键词
    */
-  extractKeywords(text: string, maxKeywords: number = 10): KeywordExtractionResult[] {
-    const words = this.segmentText(text);
+  extractKeywords(text: string, maxKeywords: number = 10, segmentedWords?: string[]): KeywordExtractionResult[] {
+    // 如果提供了已分词的结果，直接使用，否则进行分词
+    const words = segmentedWords || this.performSimpleSegmentation(text);
     const wordFreq: { [key: string]: number } = {};
     
     // 统计词频
@@ -245,8 +287,11 @@ export class ChineseTextProcessor {
    * 计算文本相似度（基于词汇重叠）
    */
   calculateSimilarity(text1: string, text2: string): number {
-    const words1 = new Set(this.segmentText(text1));
-    const words2 = new Set(this.segmentText(text2));
+    const result1 = this.segmentText(text1);
+    const result2 = this.segmentText(text2);
+    
+    const words1 = new Set(result1.filteredWords);
+    const words2 = new Set(result2.filteredWords);
     
     const intersection = new Set([...words1].filter(word => words2.has(word)));
     const union = new Set([...words1, ...words2]);

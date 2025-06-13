@@ -267,11 +267,17 @@ export class PersonalizedPruningStrategy {
    * 计算记忆重要性
    */
   private calculateMemoryImportance(character: AICharacter): number {
-    // 基于角色背景和性格计算记忆重要性
-    const backgroundComplexity = character.background.length / 500; // 归一化
-    const personalityDepth = character.personality.length / 300; // 归一化
+    // 基于角色描述和性格计算记忆重要性
+    const descriptionComplexity = (character.greeting || '').length / 200; // 归一化
     
-    return Math.min((backgroundComplexity + personalityDepth) / 2, 1.0);
+    // 计算性格复杂度（基于性格特征的数量和值）
+    let personalityDepth = 0.5; // 默认值
+    if (character.personality) {
+      const traits = Object.values(character.personality);
+      personalityDepth = traits.reduce((sum, value) => sum + value, 0) / traits.length;
+    }
+    
+    return Math.min((descriptionComplexity + personalityDepth) / 2, 1.0);
   }
 
   /**
@@ -282,11 +288,17 @@ export class PersonalizedPruningStrategy {
     const focusKeywords = ['专家', '学者', '研究', '专业', '精通', '擅长'];
     let focusScore = 0.5; // 默认中等专注度
     
-    const description = `${character.personality} ${character.background}`.toLowerCase();
-    for (const keyword of focusKeywords) {
-      if (description.includes(keyword)) {
-        focusScore += 0.1;
+    // 从角色描述中查找专业关键词
+    const description = (character.greeting || '').toLowerCase();
+          for (const keyword of focusKeywords) {
+        if (description.includes(keyword)) {
+          focusScore += 0.1;
+        }
       }
+    
+    // 基于性格特征调整专注度
+    if (character.personality?.curiosity) {
+      focusScore += character.personality.curiosity * 0.2;
     }
     
     return Math.min(focusScore, 1.0);
@@ -296,24 +308,37 @@ export class PersonalizedPruningStrategy {
    * 计算社交权重
    */
   private calculateSocialWeight(character: AICharacter): number {
-    // 基于角色性格中的社交倾向
+    let socialScore = 0.5; // 默认值
+    
+    // 基于性格特征计算社交权重
+    if (character.personality) {
+      // 外向性直接影响社交权重
+      if (character.personality.extroversion !== undefined) {
+        socialScore = character.personality.extroversion;
+      }
+      
+      // 健谈程度也影响社交权重
+      if (character.personality.talkativeness !== undefined) {
+        socialScore = (socialScore + character.personality.talkativeness) / 2;
+      }
+    }
+    
+    // 从角色描述中查找社交关键词
+    const description = (character.greeting || '').toLowerCase();
     const socialKeywords = ['友好', '开朗', '外向', '热情', '善于交流', '社交'];
     const introvertKeywords = ['内向', '安静', '独立', '沉默', '害羞'];
     
-    let socialScore = 0.5;
-    const personality = character.personality.toLowerCase();
-    
-    for (const keyword of socialKeywords) {
-      if (personality.includes(keyword)) {
-        socialScore += 0.15;
+          for (const keyword of socialKeywords) {
+        if (description.includes(keyword)) {
+          socialScore += 0.1;
+        }
       }
-    }
-    
-    for (const keyword of introvertKeywords) {
-      if (personality.includes(keyword)) {
-        socialScore -= 0.1;
+      
+      for (const keyword of introvertKeywords) {
+        if (description.includes(keyword)) {
+          socialScore -= 0.1;
+        }
       }
-    }
     
     return Math.max(0.1, Math.min(socialScore, 1.0));
   }
@@ -322,23 +347,29 @@ export class PersonalizedPruningStrategy {
    * 计算情感敏感度
    */
   private calculateEmotionalSensitivity(character: AICharacter): number {
+    let emotionalScore = 0.5; // 默认值
+    
+    // 基于性格特征计算情感敏感度
+    if (character.personality?.reactivity !== undefined) {
+      emotionalScore = character.personality.reactivity;
+    }
+    
+    // 从角色描述中查找情感关键词
+    const description = (character.greeting || '').toLowerCase();
     const emotionalKeywords = ['敏感', '情感', '感性', '温柔', '体贴', '共情'];
     const rationalKeywords = ['理性', '冷静', '逻辑', '客观', '分析'];
     
-    let emotionalScore = 0.5;
-    const description = `${character.personality} ${character.background}`.toLowerCase();
-    
-    for (const keyword of emotionalKeywords) {
-      if (description.includes(keyword)) {
-        emotionalScore += 0.15;
+          for (const keyword of emotionalKeywords) {
+        if (description.includes(keyword)) {
+          emotionalScore += 0.15;
+        }
       }
-    }
-    
-    for (const keyword of rationalKeywords) {
-      if (description.includes(keyword)) {
-        emotionalScore -= 0.1;
+      
+      for (const keyword of rationalKeywords) {
+        if (description.includes(keyword)) {
+          emotionalScore -= 0.1;
+        }
       }
-    }
     
     return Math.max(0.1, Math.min(emotionalScore, 1.0));
   }
@@ -347,24 +378,29 @@ export class PersonalizedPruningStrategy {
    * 计算上下文深度偏好
    */
   private calculateContextDepth(character: AICharacter): number {
-    // 基于角色的复杂性和背景深度
+    let depthScore = 0.5; // 默认值
+    
+    // 基于性格特征计算深度偏好
+    if (character.personality?.curiosity !== undefined) {
+      depthScore = character.personality.curiosity;
+    }
+    
+    // 从角色描述中查找复杂性指标
+    const description = (character.greeting || '').toLowerCase();
     const complexityIndicators = ['复杂', '深刻', '哲学', '思考', '分析', '研究'];
     const simplicityIndicators = ['简单', '直接', '明了', '快速', '效率'];
     
-    let depthScore = 0.5;
-    const description = `${character.personality} ${character.background}`.toLowerCase();
-    
-    for (const indicator of complexityIndicators) {
-      if (description.includes(indicator)) {
-        depthScore += 0.1;
+          for (const indicator of complexityIndicators) {
+        if (description.includes(indicator)) {
+          depthScore += 0.1;
+        }
       }
-    }
-    
-    for (const indicator of simplicityIndicators) {
-      if (description.includes(indicator)) {
-        depthScore -= 0.1;
+      
+      for (const indicator of simplicityIndicators) {
+        if (description.includes(indicator)) {
+          depthScore -= 0.1;
+        }
       }
-    }
     
     return Math.max(0.2, Math.min(depthScore, 1.0));
   }
@@ -373,8 +409,20 @@ export class PersonalizedPruningStrategy {
    * 提取性格特征
    */
   private extractPersonalityTraits(character: AICharacter): CharacterPruningPreferences['personalityTraits'] {
-    const description = `${character.personality} ${character.background}`.toLowerCase();
+    const description = (character.greeting || '').toLowerCase();
     
+    // 如果角色已有性格特征，优先使用
+    if (character.personality) {
+      return {
+        introversion: 1 - (character.personality.extroversion || 0.5),
+        openness: character.personality.curiosity || this.extractTrait(description, ['开放', '创新', '好奇'], ['保守', '传统', '固执']),
+        conscientiousness: this.extractTrait(description, ['认真', '负责', '细心'], ['随意', '粗心', '懒散']),
+        agreeableness: character.personality.talkativeness || this.extractTrait(description, ['友好', '合作', '善良'], ['冷漠', '竞争', '自私']),
+        neuroticism: character.personality.reactivity || this.extractTrait(description, ['敏感', '焦虑', '情绪化'], ['稳定', '冷静', '平和'])
+      };
+    }
+    
+    // 否则从角色描述中提取
     return {
       introversion: this.extractTrait(description, ['内向', '安静', '独立'], ['外向', '开朗', '社交']),
       openness: this.extractTrait(description, ['开放', '创新', '好奇'], ['保守', '传统', '固执']),
@@ -424,7 +472,7 @@ export class PersonalizedPruningStrategy {
     multiplier *= (1 + preferences.topicFocus * 0.2);
     
     // 基于上下文深度偏好
-    const messageLength = message.content.length;
+    const messageLength = (message.text || '').length;
     if (messageLength > 100 && preferences.contextDepth > 0.7) {
       multiplier *= 1.2; // 偏好长消息
     } else if (messageLength < 50 && preferences.contextDepth < 0.3) {
@@ -461,7 +509,7 @@ export class PersonalizedPruningStrategy {
     preferences: CharacterPruningPreferences
   ): number {
     // 简化的情感检测
-    const emotionalIntensity = this.detectEmotionalIntensity(message.content);
+    const emotionalIntensity = this.detectEmotionalIntensity(message.text || '');
     const sensitivity = preferences.emotionalSensitivity;
     
     return 1.0 + (emotionalIntensity * sensitivity * 0.25);
@@ -475,7 +523,9 @@ export class PersonalizedPruningStrategy {
     let intensity = 0;
     
     for (const marker of emotionMarkers) {
-      intensity += (content.match(new RegExp(marker, 'g')) || []).length * 0.1;
+      // 转义正则表达式特殊字符
+      const escapedMarker = marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      intensity += (content.match(new RegExp(escapedMarker, 'g')) || []).length * 0.1;
     }
     
     return Math.min(intensity, 1.0);
@@ -570,7 +620,7 @@ export class PersonalizedPruningStrategy {
     
     // 情感强度高的消息
     if (preferences.emotionalSensitivity > 0.7) {
-      const emotionalIntensity = this.detectEmotionalIntensity(message.content);
+      const emotionalIntensity = this.detectEmotionalIntensity(message.text || '');
       if (emotionalIntensity > 0.5) {
         reasons.push('高情感强度');
         return true;
@@ -590,7 +640,7 @@ export class PersonalizedPruningStrategy {
    * 检查是否为直接提及
    */
   private isDirectMention(message: Message, character: AICharacter): boolean {
-    const content = message.content.toLowerCase();
+    const content = (message.text || '').toLowerCase();
     const characterName = character.name.toLowerCase();
     
     return content.includes(`@${characterName}`) || 
@@ -602,7 +652,7 @@ export class PersonalizedPruningStrategy {
    */
   private isCharacterDefinition(message: Message, character: AICharacter): boolean {
     // 简化实现：检查是否包含角色名称和定义关键词
-    const content = message.content.toLowerCase();
+    const content = (message.text || '').toLowerCase();
     const characterName = character.name.toLowerCase();
     const definitionKeywords = ['是', '叫', '名字', '角色', '性格', '背景'];
     

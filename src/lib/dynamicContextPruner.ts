@@ -161,7 +161,7 @@ export class DynamicContextPruner {
   private async calculateTokens(messages: Message[]): Promise<(Message & { tokens: number })[]> {
     return messages.map(message => ({
       ...message,
-      tokens: this.estimateTokenCount(message.content)
+      tokens: this.estimateTokenCount(message.text || '')
     }));
   }
 
@@ -324,7 +324,7 @@ export class DynamicContextPruner {
   private calculateMentionWeight(message: Message, character?: AICharacter): number {
     if (!character) return 1.0;
     
-    const content = message.content.toLowerCase();
+    const content = (message.text || '').toLowerCase();
     const characterName = character.name.toLowerCase();
     
     // 检查是否包含@提及
@@ -344,7 +344,7 @@ export class DynamicContextPruner {
    * 计算情感权重（简化实现）
    */
   private calculateEmotionWeight(message: Message): number {
-    const content = message.content;
+    const content = message.text || '';
     
     // 简单的情感标记检测
     const emotionMarkers = ['!', '?', '...', '😊', '😢', '😡', '❤️', '💔'];
@@ -363,7 +363,7 @@ export class DynamicContextPruner {
    * 计算增强的情感权重
    */
   private calculateEnhancedEmotionWeight(message: Message): number {
-    const content = message.content;
+    const content = message.text || '';
     let emotionScore = 1.0;
     
     // 情感表情符号权重
@@ -428,7 +428,7 @@ export class DynamicContextPruner {
   private calculateTopicRelevance(message: Message, currentTopic?: string): number {
     if (!currentTopic) return 1.0;
     
-    const content = message.content.toLowerCase();
+    const content = (message.text || '').toLowerCase();
     const topic = currentTopic.toLowerCase();
     
     // 简单的关键词匹配

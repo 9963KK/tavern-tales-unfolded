@@ -2,6 +2,7 @@ import { Message } from '../types/message';
 import { AICharacter } from '../types/character';
 import { contextManager, processContextForAI, ContextProcessingResult } from './contextManager';
 import { modelDefaults } from '../data/modelDefaults';
+import { emotionPromptGenerator } from './emotionPromptGenerator';
 
 // 增强AI响应配置
 export interface EnhancedAIResponseConfig {
@@ -274,12 +275,19 @@ async function generateAIResponse(
     throw new Error('模型配置不完整');
   }
   
+  // 构建情感增强的系统提示词
+  let systemPrompt = modelConfig.prompt || '';
+  const emotionPrompt = emotionPromptGenerator.generateFullEmotionPrompt(character);
+  if (emotionPrompt) {
+    systemPrompt += emotionPrompt;
+  }
+  
   // 构建请求消息
   const requestMessages = [
-    ...(modelConfig.prompt ? [{ role: 'system', content: modelConfig.prompt }] : []),
+    ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
     ...messages.map(m => ({
       role: m.isPlayer ? 'user' : 'assistant',
-      content: m.text || m.content || ''
+      content: m.text || ''
     }))
   ];
   
@@ -373,11 +381,18 @@ async function generateOriginalAIResponse(
     throw new Error('模型配置不完整');
   }
   
+  // 构建情感增强的系统提示词
+  let systemPrompt = config.prompt || '';
+  const emotionPrompt = emotionPromptGenerator.generateFullEmotionPrompt(character);
+  if (emotionPrompt) {
+    systemPrompt += emotionPrompt;
+  }
+  
   const requestMessages = [
-    ...(config.prompt ? [{ role: 'system', content: config.prompt }] : []),
+    ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
     ...messages.map(m => ({ 
       role: m.isPlayer ? 'user' : 'assistant', 
-      content: m.text || m.content || '' 
+              content: m.text || '' 
     }))
   ];
   
@@ -416,7 +431,7 @@ async function generateOriginalAIResponse(
     let outputTokens = data.usage?.completion_tokens;
     
     if (!inputTokens || !outputTokens) {
-      const inputText = requestMessages.map(m => m.content).join(' ');
+      const inputText = requestMessages.map(m => m.text || '').join(' ');
       inputTokens = estimateTokensFn(inputText);
       outputTokens = estimateTokensFn(responseContent);
     }

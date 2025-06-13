@@ -1,4 +1,4 @@
-import { EmotionalMemory, EmotionalState } from './emotion';
+import { EmotionalMemory, EmotionalState, EmotionType, EmotionAnalysisResult } from './emotion';
 
 export interface ModelConfig {
   baseUrl?: string;
@@ -35,7 +35,11 @@ export interface AICharacter {
   interests?: string[];       // 兴趣爱好列表
   speakingStyle?: 'proactive' | 'reactive' | 'observant'; // 发言风格
   socialRole?: 'host' | 'entertainer' | 'observer' | 'advisor'; // 社交角色
-  emotionalState?: number;    // 基础情绪状态 [-1, 1]
+  
+  // 情感状态系统 v4.1
+  currentEmotionalState?: EmotionalState;  // 当前情感状态
+  emotionalHistory?: EmotionalState[];     // 情感历史记录
+  baselineEmotion?: EmotionType;           // 角色的基线情感类型
 }
 
 export interface Message {
@@ -47,6 +51,6 @@ export interface Message {
   avatarColor?: string; // For AI messages
   
   // 情感分析相关字段
-  emotionAnalysisResult?: any; // 将在后续步骤中定义具体类型
+  emotionAnalysisResult?: EmotionAnalysisResult; // 消息的情感分析结果
 }
 

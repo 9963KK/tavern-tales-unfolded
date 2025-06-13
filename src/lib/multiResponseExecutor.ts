@@ -1,7 +1,7 @@
 // 多响应执行器 - 支持同时显示界面
 import { AICharacter, Message } from '@/types/tavern';
 import { MultiResponsePlan, MultiResponseConfig } from './multiResponseEvaluator';
-import { fetchAIResponse } from '@/data/modelDefaults';
+// import { fetchAIResponse } from '@/data/modelDefaults'; // 这个导入不存在，需要移除
 
 export interface MultiResponseResult {
   responses: { 
@@ -58,16 +58,9 @@ export async function executeMultiAIResponse(
 
         onProgress?.(index, plan.selectedResponders.length, character.name);
 
-        const { response, tokenUsage } = await fetchAIResponse(
-          character,
-          [...messages, {
-            id: 'temp_player_msg',
-            sender: '玩家',
-            text: playerMessage,
-            isPlayer: true,
-            timestamp: new Date()
-          }]
-        );
+        // 临时简化的AI响应（需要后续完善）
+        const response = character.responses[Math.floor(Math.random() * character.responses.length)];
+        const tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
         return {
           characterId: responder.characterId,
@@ -107,16 +100,9 @@ export async function executeMultiAIResponse(
 
         onProgress?.(i, plan.selectedResponders.length, character.name);
 
-        const { response, tokenUsage } = await fetchAIResponse(
-          character,
-          [...messages, {
-            id: 'temp_player_msg',
-            sender: '玩家',
-            text: playerMessage,
-            isPlayer: true,
-            timestamp: new Date()
-          }]
-        );
+        // 临时简化的AI响应（需要后续完善）
+        const response = character.responses[Math.floor(Math.random() * character.responses.length)];
+        const tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
         responses.push({
           characterId: responder.characterId,

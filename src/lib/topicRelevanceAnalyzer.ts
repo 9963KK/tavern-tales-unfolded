@@ -140,7 +140,7 @@ export class TopicRelevanceAnalyzer {
   private calculateTopicRelevance(message: Message, currentTopic?: string): number {
     if (!currentTopic) return 0.5; // 默认中等相关性
 
-    const messageSegment = this.textProcessor.segmentText(message.content);
+    const messageSegment = this.textProcessor.segmentText(message.text || '');
     const topicSegment = this.textProcessor.segmentText(currentTopic);
 
     // 使用Jaccard相似度计算基础相关性
@@ -171,15 +171,15 @@ export class TopicRelevanceAnalyzer {
   private calculateCharacterRelevance(message: Message, character?: AICharacter): number {
     if (!character) return 0.5;
 
-    const messageSegment = this.textProcessor.segmentText(message.content);
+    const messageSegment = this.textProcessor.segmentText(message.text || '');
     
     // 基于角色描述计算相关性
-    const characterDescription = `${character.name} ${character.personality} ${character.background}`;
+    const characterDescription = `${character.name} ${character.greeting || ''}`;
     const characterSegment = this.textProcessor.segmentText(characterDescription);
 
     // 计算语义相似度
     const similarity = this.textProcessor.calculateSimilarity(
-      message.content,
+      message.text || '',
       characterDescription
     );
 
@@ -212,8 +212,8 @@ export class TopicRelevanceAnalyzer {
       if (histMsg.id === message.id) continue;
 
       const similarity = this.textProcessor.calculateSimilarity(
-        message.content,
-        histMsg.content
+        message.text || '',
+        histMsg.text || ''
       );
 
       maxSimilarity = Math.max(maxSimilarity, similarity);
@@ -232,7 +232,7 @@ export class TopicRelevanceAnalyzer {
    * 检查角色提及
    */
   private checkCharacterMention(message: Message, character: AICharacter): boolean {
-    const content = message.content.toLowerCase();
+    const content = (message.text || '').toLowerCase();
     const characterName = character.name.toLowerCase();
     
     return (
@@ -263,7 +263,7 @@ export class TopicRelevanceAnalyzer {
   private extractMatchedKeywords(message: Message, currentTopic?: string): string[] {
     if (!currentTopic) return [];
 
-    const messageSegment = this.textProcessor.segmentText(message.content);
+    const messageSegment = this.textProcessor.segmentText(message.text || '');
     const topicSegment = this.textProcessor.segmentText(currentTopic);
 
     const messageWords = new Set(messageSegment.filteredWords);
@@ -315,7 +315,7 @@ export class TopicRelevanceAnalyzer {
     // 1. 使用TF-IDF分析消息
     const documents = messages.map(msg => ({
       id: msg.id,
-      content: msg.content
+      content: msg.text || ''
     }));
 
     const tfidfResult = this.tfidfCalculator.calculateTFIDF(documents);
@@ -419,8 +419,8 @@ export class TopicRelevanceAnalyzer {
     for (let i = 0; i < cluster.messages.length; i++) {
       for (let j = i + 1; j < cluster.messages.length; j++) {
         const similarity = this.textProcessor.calculateSimilarity(
-          cluster.messages[i].content,
-          cluster.messages[j].content
+          cluster.messages[i].text || '',
+          cluster.messages[j].text || ''
         );
         totalSimilarity += similarity;
         pairCount++;

@@ -51,10 +51,18 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({
   const [showDetailFor, setShowDetailFor] = useState<string | null>(null);
 
   // 计算当前会话总token消耗
-  const totalTokens = currentTokenUsage.reduce((sum, usage) => sum + usage.totalTokens, 0);
-  const totalInputTokens = currentTokenUsage.reduce((sum, usage) => sum + usage.inputTokens, 0);
-  const totalOutputTokens = currentTokenUsage.reduce((sum, usage) => sum + usage.outputTokens, 0);
-  const totalApiCalls = currentTokenUsage.reduce((sum, usage) => sum + usage.apiCalls, 0);
+  const totalTokens = Array.isArray(currentTokenUsage) 
+    ? currentTokenUsage.reduce((sum, usage) => sum + (usage?.totalTokens || 0), 0)
+    : 0;
+  const totalInputTokens = Array.isArray(currentTokenUsage)
+    ? currentTokenUsage.reduce((sum, usage) => sum + (usage?.inputTokens || 0), 0)
+    : 0;
+  const totalOutputTokens = Array.isArray(currentTokenUsage)
+    ? currentTokenUsage.reduce((sum, usage) => sum + (usage?.outputTokens || 0), 0)
+    : 0;
+  const totalApiCalls = Array.isArray(currentTokenUsage)
+    ? currentTokenUsage.reduce((sum, usage) => sum + (usage?.apiCalls || 0), 0)
+    : 0;
 
   // 格式化时间
   const formatTime = (date: Date) => {
@@ -82,10 +90,20 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({
     
     tokenUsage.forEach(usage => {
       const category = usage.category || 'character';
-      categoryStats[category].total += usage.totalTokens;
-      categoryStats[category].input += usage.inputTokens;
-      categoryStats[category].output += usage.outputTokens;
-      categoryStats[category].calls += usage.apiCalls;
+      
+      // 确保分类存在于 categoryStats 中
+      if (categoryStats[category as keyof typeof categoryStats]) {
+        categoryStats[category as keyof typeof categoryStats].total += usage.totalTokens || 0;
+        categoryStats[category as keyof typeof categoryStats].input += usage.inputTokens || 0;
+        categoryStats[category as keyof typeof categoryStats].output += usage.outputTokens || 0;
+        categoryStats[category as keyof typeof categoryStats].calls += usage.apiCalls || 0;
+      } else {
+        // 如果分类不存在，归类到 character
+        categoryStats.character.total += usage.totalTokens || 0;
+        categoryStats.character.input += usage.inputTokens || 0;
+        categoryStats.character.output += usage.outputTokens || 0;
+        categoryStats.character.calls += usage.apiCalls || 0;
+      }
     });
     
     return categoryStats;
@@ -93,8 +111,14 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({
 
   // 获取会话统计信息
   const getSessionStats = (session: HistorySession) => {
-    const totalTokens = session.tokenUsage.reduce((sum, usage) => sum + usage.totalTokens, 0);
-    const categoryStats = getUsageByCategory(session.tokenUsage);
+    // 确保 tokenUsage 存在且是数组
+    const tokenUsage = Array.isArray(session.tokenUsage) ? session.tokenUsage : [];
+    
+    const totalTokens = tokenUsage.reduce((sum, usage) => {
+      return sum + (usage?.totalTokens || 0);
+    }, 0);
+    
+    const categoryStats = getUsageByCategory(tokenUsage);
     return { totalTokens, categoryStats };
   };
 
@@ -281,7 +305,8 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({
                               <div className="space-y-1">
                                 <div className="font-medium text-tavern-text">分类统计:</div>
                                 {Object.entries(getSessionStats(session).categoryStats).map(([category, stats]) => {
-                                  if (stats.total === 0) return null;
+                                  // 安全检查：确保 stats 存在且有 total 属性
+                                  if (!stats || typeof stats.total !== 'number' || stats.total === 0) return null;
                                   
                                   const categoryNames = {
                                     character: '角色对话',
@@ -299,10 +324,10 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({
                                   
                                   return (
                                     <div key={category} className="flex justify-between">
-                                      <span className={`${categoryColors[category as keyof typeof categoryColors]}`}>
-                                        {categoryNames[category as keyof typeof categoryNames]}:
+                                      <span className={`${categoryColors[category as keyof typeof categoryColors] || 'text-gray-400'}`}>
+                                        {categoryNames[category as keyof typeof categoryNames] || category}:
                                       </span>
-                                      <span className="font-semibold">{stats.total.toLocaleString()}</span>
+                                      <span className="font-semibold">{(stats.total || 0).toLocaleString()}</span>
                                     </div>
                                   );
                                 })}

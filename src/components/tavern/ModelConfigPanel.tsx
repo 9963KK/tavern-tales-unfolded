@@ -4,9 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Slider } from '@/components/ui/slider';
-import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, ChevronDown } from 'lucide-react';
 import { modelDefaults } from '@/data/modelDefaults';
 import MultiResponseConfigPanel from './MultiResponseConfigPanel';
 import { MultiResponseConfig } from '@/lib/multiResponseEvaluator';
@@ -24,9 +23,18 @@ const ModelConfigPanel: React.FC<ModelConfigPanelProps> = ({
   multiResponseConfig,
   onMultiResponseConfigChange 
 }) => {
+  // 调试：检查接收到的角色数据
+  console.log('🔍 ModelConfigPanel 接收到的角色:', characters.map(c => ({ 
+    id: c.id, 
+    name: c.name, 
+    hasId: !!c.id,
+    idType: typeof c.id 
+  })));
+
   const [editingConfigs, setEditingConfigs] = useState<Record<string, ModelConfig>>({});
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [showAdvancedConfigs, setShowAdvancedConfigs] = useState<Record<string, boolean>>({});
+  const [expandedCharacters, setExpandedCharacters] = useState<Record<string, boolean>>({});
 
   const getCharacterConfig = (character: AICharacter): ModelConfig => {
     if (editingConfigs[character.id]) {
@@ -80,6 +88,19 @@ const ModelConfigPanel: React.FC<ModelConfigPanelProps> = ({
       ...prev,
       [characterId]: !prev[characterId]
     }));
+  };
+
+  const toggleCharacterExpanded = (characterId: string) => {
+    console.log(`🔧 点击角色: ${characterId} (类型: ${typeof characterId})`);
+    
+    setExpandedCharacters(prevState => {
+      const newState = {
+        ...prevState,
+        [characterId]: !prevState[characterId]
+      };
+      console.log('📋 状态更新:', { 角色ID: characterId, 新状态: newState });
+      return newState;
+    });
   };
 
   return (
@@ -143,29 +164,39 @@ const ModelConfigPanel: React.FC<ModelConfigPanelProps> = ({
             {/* 角色配置 */}
             <div>
               <h4 className="text-sm font-semibold text-tavern-accent mb-2">角色模型配置</h4>
-              <Accordion type="single" collapsible className="space-y-2">
-                {characters.map((character) => {
+              <div className="space-y-2">
+                {characters.map((character, index) => {
+                // 使用角色ID或索引作为备用键
+                const characterKey = character.id || `character_${index}`;
                 const config = getCharacterConfig(character);
-                const isEditing = editingConfigs[character.id];
-                const showAdvanced = showAdvancedConfigs[character.id];
+                const isEditing = editingConfigs[characterKey];
+                const showAdvanced = showAdvancedConfigs[characterKey];
+                const isExpanded = expandedCharacters[characterKey] === true;
+                
+                console.log(`🔍 角色 ${character.name}: ID=${character.id}, Key=${characterKey}, 展开=${isExpanded}`);
                 
                 return (
-                  <AccordionItem key={character.id} value={character.id} className="border border-tavern-accent/30 rounded-lg transition-all duration-200 hover:border-tavern-accent/50">
-                    <AccordionTrigger className="px-3 py-2 hover:no-underline transition-colors duration-200">
+                  <div key={characterKey} className="border border-tavern-accent/30 rounded-lg transition-all duration-200 hover:border-tavern-accent/50">
+                    <button
+                      className="w-full px-3 py-2 flex items-center justify-between hover:bg-tavern-accent/10 transition-colors duration-200 rounded-t-lg"
+                      onClick={() => toggleCharacterExpanded(characterKey)}
+                    >
                       <div className="flex items-center gap-2">
                         <div className={`w-4 h-4 rounded-full ${character.avatarColor} transition-transform duration-200 hover:scale-110`}></div>
                         <span className="text-tavern-text font-medium">{character.name}</span>
                         {isEditing && <span className="text-xs text-yellow-500 animate-pulse">●</span>}
                       </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-3 pb-3">
+                      <ChevronDown className={`h-4 w-4 shrink-0 transition-transform duration-200 text-tavern-accent ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isExpanded && (
+                      <div className="px-3 pb-3 border-t border-tavern-accent/20">
                       <div className="space-y-3 pt-2">
                         {/* 基础配置 */}
                         <div className="transition-all duration-200">
                           <Label className="text-xs text-tavern-text">Base URL</Label>
                           <Input
                             value={config.baseUrl || ''}
-                            onChange={(e) => updateEditingConfig(character.id, 'baseUrl', e.target.value)}
+                            onChange={(e) => updateEditingConfig(characterKey, 'baseUrl', e.target.value)}
                             className="mt-1 bg-tavern-bg border-tavern-text text-xs h-8 transition-all duration-200 focus:scale-[1.02]"
                             placeholder="API Base URL"
                           />
@@ -176,7 +207,7 @@ const ModelConfigPanel: React.FC<ModelConfigPanelProps> = ({
                           <Input
                             type="password"
                             value={config.apiKey || ''}
-                            onChange={(e) => updateEditingConfig(character.id, 'apiKey', e.target.value)}
+                            onChange={(e) => updateEditingConfig(characterKey, 'apiKey', e.target.value)}
                             className="mt-1 bg-tavern-bg border-tavern-text text-xs h-8 transition-all duration-200 focus:scale-[1.02]"
                             placeholder="API密钥"
                           />
@@ -186,7 +217,7 @@ const ModelConfigPanel: React.FC<ModelConfigPanelProps> = ({
                           <Label className="text-xs text-tavern-text">Model Name</Label>
                           <Input
                             value={config.modelName || ''}
-                            onChange={(e) => updateEditingConfig(character.id, 'modelName', e.target.value)}
+                            onChange={(e) => updateEditingConfig(characterKey, 'modelName', e.target.value)}
                             className="mt-1 bg-tavern-bg border-tavern-text text-xs h-8 transition-all duration-200 focus:scale-[1.02]"
                             placeholder="模型名称"
                           />
@@ -195,7 +226,7 @@ const ModelConfigPanel: React.FC<ModelConfigPanelProps> = ({
                         {/* 高级配置按钮 */}
                         <div className="flex items-center justify-between pt-2">
                           <Button
-                            onClick={() => toggleAdvancedConfig(character.id)}
+                            onClick={() => toggleAdvancedConfig(characterKey)}
                             variant="ghost"
                             size="sm"
                             className="text-tavern-accent hover:text-yellow-400 text-xs h-6 px-2 transition-all duration-200 hover:scale-105"
@@ -213,7 +244,7 @@ const ModelConfigPanel: React.FC<ModelConfigPanelProps> = ({
                                 <div className="mt-1 space-y-1">
                                   <Slider
                                     value={[config.temperature || 0.7]}
-                                    onValueChange={(value) => updateEditingConfig(character.id, 'temperature', value[0])}
+                                    onValueChange={(value) => updateEditingConfig(characterKey, 'temperature', value[0])}
                                     max={2}
                                     min={0}
                                     step={0.1}
@@ -232,7 +263,7 @@ const ModelConfigPanel: React.FC<ModelConfigPanelProps> = ({
                                 <Input
                                   type="number"
                                   value={config.maxTokens || 2048}
-                                  onChange={(e) => updateEditingConfig(character.id, 'maxTokens', parseInt(e.target.value) || 2048)}
+                                  onChange={(e) => updateEditingConfig(characterKey, 'maxTokens', parseInt(e.target.value) || 2048)}
                                   className="mt-1 bg-tavern-bg border-tavern-text text-xs h-8 transition-all duration-200 focus:scale-[1.02]"
                                   placeholder="2048"
                                   min="1"
@@ -245,7 +276,7 @@ const ModelConfigPanel: React.FC<ModelConfigPanelProps> = ({
                                 <div className="mt-1 space-y-1">
                                   <Slider
                                     value={[config.topP || 1.0]}
-                                    onValueChange={(value) => updateEditingConfig(character.id, 'topP', value[0])}
+                                    onValueChange={(value) => updateEditingConfig(characterKey, 'topP', value[0])}
                                     max={1}
                                     min={0}
                                     step={0.1}
@@ -264,7 +295,7 @@ const ModelConfigPanel: React.FC<ModelConfigPanelProps> = ({
                                 <div className="mt-1 space-y-1">
                                   <Slider
                                     value={[config.frequencyPenalty || 0.0]}
-                                    onValueChange={(value) => updateEditingConfig(character.id, 'frequencyPenalty', value[0])}
+                                    onValueChange={(value) => updateEditingConfig(characterKey, 'frequencyPenalty', value[0])}
                                     max={2}
                                     min={-2}
                                     step={0.1}
@@ -283,7 +314,7 @@ const ModelConfigPanel: React.FC<ModelConfigPanelProps> = ({
                                 <div className="mt-1 space-y-1">
                                   <Slider
                                     value={[config.presencePenalty || 0.0]}
-                                    onValueChange={(value) => updateEditingConfig(character.id, 'presencePenalty', value[0])}
+                                    onValueChange={(value) => updateEditingConfig(characterKey, 'presencePenalty', value[0])}
                                     max={2}
                                     min={-2}
                                     step={0.1}
@@ -302,13 +333,13 @@ const ModelConfigPanel: React.FC<ModelConfigPanelProps> = ({
                         {isEditing && (
                           <div className="flex gap-2 pt-2 animate-in slide-in-from-bottom-2 duration-300">
                             <Button
-                              onClick={() => saveConfig(character.id)}
+                              onClick={() => saveConfig(characterKey)}
                               className="bg-tavern-accent hover:bg-tavern-accent/80 text-white text-xs h-7 px-2 flex-1 transition-all duration-200 hover:scale-105"
                             >
                               保存
                             </Button>
                             <Button
-                              onClick={() => resetConfig(character.id)}
+                              onClick={() => resetConfig(characterKey)}
                               variant="outline"
                               className="text-tavern-text border-tavern-accent hover:bg-tavern-accent/20 text-xs h-7 px-2 flex-1 transition-all duration-200 hover:scale-105"
                             >
@@ -317,11 +348,12 @@ const ModelConfigPanel: React.FC<ModelConfigPanelProps> = ({
                           </div>
                         )}
                       </div>
-                    </AccordionContent>
-                  </AccordionItem>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
-              </Accordion>
+              </div>
             </div>
           </div>
         </div>
